@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: controllens
+      POSTGRES_PASSWORD: controllens
+      POSTGRES_DB: controllens
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U controllens"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      CL_ENV: prod
+      CL_DATABASE_URL: postgresql+psycopg://controllens:controllens@db:5432/controllens
+      CL_JWT_SECRET: ${CL_JWT_SECRET:?set CL_JWT_SECRET in .env}
+      CL_ANTHROPIC_API_KEY: ${CL_ANTHROPIC_API_KEY:-}
+      CL_CORS_ORIGINS: http://localhost:8000
+      CL_SEED_DEMO: ${CL_SEED_DEMO:-true}
+    volumes: [evidence:/data/storage]
+volumes:
+  pgdata:
+  evidence:

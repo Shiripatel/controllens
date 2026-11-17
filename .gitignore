@@ -1,0 +1,9 @@
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.env
+*.db
+*.db-*
+backend/storage/
+.pytest_cache/
