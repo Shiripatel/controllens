@@ -1,57 +1,189 @@
-# ControlLens: agentic ITGC testing platform
+<div align="center">
+
+# ◎ ControlLens
+
+**Agentic AI platform for IT general control (ITGC) testing**
+
+AI agents draft the audit work. People make the decisions. Every claim is tied to the evidence.
 
 ![CI](../../actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-3776AB)
+![React](https://img.shields.io/badge/react-19-61DAFB)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688)
+![Claude](https://img.shields.io/badge/AI-Claude-D97757)
 
-ControlLens tests IT general controls (ITGC) with AI agents. The agents draft the work and people make the decisions. Every claim an agent makes has to point to a quote in the evidence, and the platform checks that the quote is really there.
+[Quick start](#quick-start) · [Demo](#demo-walkthrough) · [Architecture](docs/ARCHITECTURE.md) · [Agents](docs/AGENTS.md) · [API](docs/API.md) · [Security](docs/SECURITY.md) · [Deploy](docs/DEPLOYMENT.md)
 
 ![Operating effectiveness testing](docs/screenshots/operating-effectiveness.png)
 
-Version 1 covers all four ITGC domains:
-
-| Domain | Controls in library |
-|---|---|
-| APD: Access to Programs & Data | Provisioning, terminations, access review, privileged access, passwords/MFA, SoD, direct data changes, privileged activity monitoring |
-| PC: Program Change | Change approval, testing, dev/prod separation, emergency changes, configuration monitoring |
-| CO: Computer Operations | Batch jobs, backups, incidents, interfaces |
-| PD: Program Development | New system approval, data migration, post-implementation review |
+</div>
 
 ---
 
-## Quick start (local, about 5 minutes)
+## Contents
 
-You need Python 3.11+ and Node 20+.
+- [Why ControlLens](#why-controllens)
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Quick start](#quick-start)
+- [Demo walkthrough](#demo-walkthrough)
+- [Screenshots](#screenshots)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [License](#license)
 
-```bash
-# 1. Back end
-cd backend
-pip install -r requirements.txt
-cp ../.env.example .env          # add CL_ANTHROPIC_API_KEY for real AI (optional)
-uvicorn app.main:app --reload --port 8000
+---
 
-# 2. Front end (new terminal)
-cd frontend
-npm install
-npm run dev                      # opens http://localhost:5173
+## Why ControlLens
+
+Testing ITGCs is slow and repetitive. Each control needs the same steps: understand the risk, check the design, pick a sample, test each item against each attribute, write it up, and get it reviewed. Most of the time goes into reading evidence and writing the same kind of notes again and again.
+
+Plain AI chat tools don't fix this for audit work, because their answers can't be traced. An auditor can't sign off on "the AI said so."
+
+ControlLens is built around three rules:
+
+1. **Every claim cites evidence.** Agents must quote the evidence file. The platform checks the quote is really in that file. If it isn't, the claim is flagged and downgraded.
+2. **Code does the math.** Sample sizes, random selection and final roll-ups are calculated by code, so anyone can repeat them. AI never decides how many items to test.
+3. **People decide.** Agents only propose. A person confirms each conclusion and signs off. If they change the agent's answer, they must say why, and that is logged.
+
+---
+
+## Features
+
+### Control library: 20 ITGCs across all 4 domains
+
+| Domain | Controls |
+|---|---|
+| **APD**: Access to Programs & Data | User provisioning · Terminations · Access review · Privileged access · Passwords / MFA · Segregation of duties · Direct data changes · Privileged activity monitoring |
+| **PC**: Program Change | Change approval · Change testing · Dev / prod separation · Emergency changes · Configuration monitoring |
+| **CO**: Computer Operations | Batch jobs · Backups · Incident management · Interface monitoring |
+| **PD**: Program Development | New system approval · Data migration · Post-implementation review |
+
+Each control comes with its **attributes**, **D&I procedures**, **TOE procedures** and **evidence to request**. Teams copy controls into an engagement for each in-scope system, then tailor them.
+
+### Three AI agents
+
+| Agent | What it does |
+|---|---|
+| **Design & Implementation (D&I)** | Maps risk to attributes, then to procedures, then to evidence. Judges whether each attribute is well designed and actually in place. Lists gaps and evidence to request. |
+| **Test of Operating Effectiveness (TOE)** | Tests every sample item against every attribute, in batches. Logs exceptions with the exact reason (for example, "access granted 28-May, owner approval 30-May"). |
+| **Reviewer** | Runs quality rules and an AI review of the work papers. Raises review notes, which block the reviewer's sign-off until they are closed. |
+
+### Audit workflow
+
+- **Engagements** with in-scope systems (application, database, OS layers) and team members
+- **Evidence** upload: PDF, Excel, CSV, Word, text and images, with text pulled out automatically
+- **Sampling engine**: frequency- and risk-based sample size, seeded random selection, override with reason
+- **Exceptions** tracked by severity: deficiency, significant deficiency, material weakness
+- **Preparer → reviewer sign-off** for both D&I and TOE
+- **Review notes** with respond, address and close
+- **CSV export** of the engagement status
+
+### Built for enterprise use
+
+| Area | What's included |
+|---|---|
+| Access | 5 roles (viewer, preparer, reviewer, manager, admin), access by engagement membership |
+| Segregation of duties | The preparer can't review their own work. Open review notes block review. |
+| Integrity | Sign-offs are revoked automatically when the control, its evidence, its sample or an exception changes |
+| Audit trail | Hash-chained log of every action, with a one-click integrity check |
+| Evidence | SHA-256 hash on upload, checked on every download. File type and size limits. Soft delete only. |
+| AI traceability | Each run stores the model, prompt version, input hash, evidence used, every step's output and token counts |
+| Data safety | Two people editing the same control can't overwrite each other's changes. Engagements can be locked. |
+| Login | bcrypt passwords, strength rules, lockout after 5 failed tries, JWT sessions |
+| Operations | Request IDs, JSON logs, security headers, health check, Docker + Postgres, CI |
+
+---
+
+## How it works
+
+```mermaid
+flowchart LR
+    U[Auditor] --> W[React web app]
+    W -->|REST + JWT| A[FastAPI back end]
+    A --> D[(Postgres / SQLite)]
+    A --> F[(Evidence files<br/>SHA-256)]
+    A -->|background task| R[Agent runner]
+    R --> G1[D&I agent]
+    R --> G2[TOE agent]
+    R --> G3[Reviewer agent]
+    G1 & G2 & G3 --> L[Claude API<br/>structured output]
+    G1 & G2 --> C[Citation check<br/>guardrail]
+    A --> T[(Hash-chained<br/>audit log)]
 ```
 
-The first time it starts, it creates a demo engagement called **Acme Corp FY2026 SOX ITGC**. It has 20 SAP controls, and APD-01 already has evidence attached.
+**Life of a control:**
 
-| Login | Password | Role |
-|---|---|---|
-| priya.preparer@controllens.local | Demo#12345 | Preparer |
-| ravi.reviewer@controllens.local | Demo#12345 | Reviewer |
-| maya.manager@controllens.local | Demo#12345 | Manager |
-| admin@controllens.local | Admin#12345 | Admin |
+```mermaid
+flowchart LR
+    S0([Not started]) --> S1[D&I in progress]
+    S1 -->|preparer signs| S2[D&I prepared]
+    S2 -->|reviewer signs| S3[D&I reviewed]
+    S3 --> S4[TOE in progress]
+    S4 -->|preparer signs| S5[TOE prepared]
+    S5 -->|reviewer signs| S6([Complete])
+    S2 & S3 -.->|control or evidence changed| S1
+    S5 & S6 -.->|sample, evidence or exception changed| S4
+```
 
-**Without an API key**, the agents run in *offline demo mode*. This mode matches keywords instead of using AI, and the side bar shows it. **With a key**, the agents call Claude.
+For the full design, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
-### Run with Docker (Postgres + app in one command)
+---
+
+## Quick start
+
+### Option 1: Run locally (about 5 minutes)
+
+You need **Python 3.11+** and **Node 20+**.
+
+```bash
+git clone https://github.com/<your-username>/controllens.git
+cd controllens
+
+# Back end
+cd backend
+pip install -r requirements.txt
+cp ../.env.example .env           # optional: add CL_ANTHROPIC_API_KEY
+uvicorn app.main:app --reload --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev                        # open http://localhost:5173
+```
+
+### Option 2: Docker (app + Postgres)
 
 ```bash
 echo "CL_JWT_SECRET=$(openssl rand -hex 32)" > .env
-echo "CL_ANTHROPIC_API_KEY=sk-ant-..." >> .env
-docker compose up --build        # http://localhost:8000
+echo "CL_ANTHROPIC_API_KEY=sk-ant-..." >> .env    # optional
+docker compose up --build                          # open http://localhost:8000
 ```
+
+### AI mode
+
+| `CL_ANTHROPIC_API_KEY` | What runs |
+|---|---|
+| Not set | **Offline demo mode.** Agents use simple keyword matching so you can try the full flow with no AI cost. The side bar shows "offline demo mode". |
+| Set | **Claude.** Agents call the model with structured output and the full guardrails. |
+
+### Demo logins
+
+On first start, the app creates a demo engagement called **Acme Corp FY2026 SOX ITGC**. It has 20 SAP controls, and sample evidence is attached to APD-01.
+
+| Role | Email | Password |
+|---|---|---|
+| Preparer | `priya.preparer@controllens.local` | `Demo#12345` |
+| Reviewer | `ravi.reviewer@controllens.local` | `Demo#12345` |
+| Manager | `maya.manager@controllens.local` | `Demo#12345` |
+| Admin | `admin@controllens.local` | `Admin#12345` |
+
+> Change or turn off demo users (`CL_SEED_DEMO=false`) before any real use.
 
 ### Run tests
 
@@ -61,62 +193,20 @@ cd backend && pytest -q
 
 ---
 
-## Demo walkthrough (APD-01 User access provisioning)
+## Demo walkthrough
 
-1. Sign in as **Preparer**, then open the engagement and then **APD-01-SAP**.
-2. **Design & Implementation**: click *Run agent*. It maps risk → attributes → procedures → evidence, checks every quote, and proposes a conclusion. Confirm it, then *Sign off as preparer*.
-3. Sign in as **Reviewer**. Open the same control and *Sign off as reviewer*. The preparer can't do this step (segregation of duties).
-4. As Preparer, go to **Sampling** and pick `SAP_new_users_FY26.csv`. The platform works out the sample size and records the seed.
-5. **Operating Effectiveness**: run the agent. It tests each sample item against each attribute and finds the planted exception: EGARCIA's access was granted before the owner approved it.
-6. **Review notes**: run the reviewer agent. It raises notes, for example "TOE conclusion not confirmed".
-7. **Audit trail** (manager): click *Verify integrity* to check the hash chain.
+Use control **APD-01 · User access provisioning**.
 
----
-
-## How it works
-
-```mermaid
-flowchart LR
-  UI[React web app] -->|JWT| API[FastAPI]
-  API --> DB[(Postgres / SQLite)]
-  API --> FS[(Evidence store<br/>SHA-256 per file)]
-  API -->|background task| AG{Agents}
-  AG --> DNI[D&I agent]
-  AG --> TOE[TOE agent]
-  AG --> REV[Reviewer agent]
-  DNI & TOE & REV --> LLM[Claude via forced tool call<br/>or offline mock]
-  DNI & TOE --> GR[Guardrail: citation check]
-  API --> AUD[(Hash-chained audit log)]
-```
-
-### The agents
-
-| Agent | Steps | What is AI, what is code |
-|---|---|---|
-| **D&I** | Set context → Map risk to attributes & procedures → Map procedures to evidence & evaluate → Verify citations → Propose conclusion | AI writes the plan and the evaluation. Code checks the citations and does the roll-up. |
-| **TOE** | Set context → Map attributes to test steps → Decide test type → Build test plan → Test each sample item (batches of 8) → Verify citations → Propose conclusion | AI writes the test steps and tests each item. **Code decides** the test type and sample, records exceptions, and does the roll-up. |
-| **Reviewer** | Quality rules → AI review of the work papers → Raise review notes | Rules catch evidence that changed after a run, small samples, missing population, unconfirmed conclusions, and exceptions that conflict with the conclusion. |
-
-### Guardrails (why you can trust the output)
-
-- **Structured output only.** Every AI call is a forced tool call with a JSON schema. If the output is malformed, the call is retried.
-- **Citation check.** Each cited quote must appear word for word in the cited evidence file. If not, the claim is flagged.
-- **Unsupported claims are downgraded.** A "pass" or "adequate" without verified evidence becomes "unable to assess".
-- **Math in code, not AI.** Sample size, random selection (seeded, so anyone can repeat it), and the final roll-up.
-- **Agents never sign off.** A person confirms each conclusion. If they change the agent's answer, they must give a reason, and it is logged.
-- **Full run record.** Each run stores the model, prompt version, input hash, evidence IDs, every step's output, token counts and flags.
-
-### Enterprise controls built in
-
-- **Roles:** viewer, preparer, reviewer, manager, admin. Engagement membership controls who sees what.
-- **Segregation of duties:** the person who prepared a stage can't review it. Open review notes block the reviewer sign-off.
-- **Sign-off revocation:** if the control, its evidence, its sample or an exception changes, the sign-offs it relied on are revoked automatically.
-- **Tamper-evident audit trail:** each row's hash includes the previous row's hash, and `/api/audit/verify` checks the whole chain.
-- **Evidence integrity:** a SHA-256 hash is stored on upload and checked again on download. Duplicate files are blocked, only allowed file types and sizes are accepted, and removed files are soft-deleted.
-- **Safe concurrent editing:** if two people edit the same control, the second save is rejected.
-- **Login security:** bcrypt passwords, a password strength rule, and lockout after 5 failed tries.
-- **Engagement lock:** once a manager locks an engagement, its work papers are read-only.
-- **Operations:** request IDs, JSON logs, security headers, a health check, and runs stuck by a restart are marked failed. Runs in Docker as a non-root user with Postgres.
+| # | Who | Where | What happens |
+|---|---|---|---|
+| 1 | Preparer | Design & Implementation | Click **Run agent**. Watch it go through 5 steps. Each attribute gets a result with quoted evidence and a ✓ if the quote is verified. |
+| 2 | Preparer | same | **Confirm conclusion**, then **Sign off as preparer**. |
+| 3 | Reviewer | same | **Sign off as reviewer**. Try it as the preparer: it's blocked by segregation of duties. |
+| 4 | Preparer | Sampling | Pick `SAP_new_users_FY26.csv` and click **Select sample**. The size comes from the methodology table, and the seed is saved. |
+| 5 | Preparer | Operating Effectiveness | **Run agent**. It tests 8 users × 4 attributes and catches EGARCIA: access was granted before the owner approved it. |
+| 6 | Reviewer | Review notes | Run the **Reviewer agent**. It raises notes such as "TOE conclusion not confirmed". |
+| 7 | Preparer | Evidence | Upload any new design file. The D&I sign-offs are revoked automatically. |
+| 8 | Manager | Audit trail | Click **Verify integrity** to check the hash chain. |
 
 ---
 
@@ -130,41 +220,91 @@ flowchart LR
 
 ---
 
-## Folder map
+## Tech stack
 
-```
-backend/app/
-  library.py          ITGC control library (20 controls, attributes, procedures, evidence)
-  sampling.py         sampling methodology table + seeded selection
-  agents/
-    llm.py            Claude client (forced tool use, retries) + offline mock
-    prompts.py        versioned prompts
-    common.py         evidence packing, citation verification
-    dni.py toe.py reviewer.py   the three agents
-    runner.py         step recorder (saves each step as it runs)
-  workflow.py         sign-offs, SoD, revocation
-  audit.py            hash-chained audit log
-  routers/            REST API (auth, engagements, controls, audit)
-frontend/src/pages/   Login, Engagements, Engagement, ControlWorkspace, Library, Audit, Users
-```
-
-API docs (Swagger) are at `http://localhost:8000/docs` when the server is running.
+| Layer | Choice | Why |
+|---|---|---|
+| Front end | React 19, TypeScript, Vite, React Router | Fast, typed, no heavy UI library |
+| Back end | Python, FastAPI, Pydantic | Typed API with automatic OpenAPI docs |
+| Database | SQLAlchemy 2 on Postgres (prod) or SQLite (dev) | Same code for both |
+| AI | Anthropic Claude through forced tool use | Answers always match a JSON schema |
+| Documents | pypdf, openpyxl, built-in DOCX reader | Pull text out of evidence |
+| Auth | JWT (PyJWT), bcrypt | Standard and simple to swap for SSO |
+| Delivery | Docker, docker compose, GitHub Actions | One image serves the API and the web app |
 
 ---
 
-## Before a real client rollout (next steps)
+## Project structure
 
-Version 1 is a solid base. Before you put real client data in it, add these:
+```
+controllens/
+├── backend/
+│   ├── app/
+│   │   ├── main.py            App start-up, middleware, static web app
+│   │   ├── config.py          Settings (env vars, CL_ prefix)
+│   │   ├── db.py · models.py  Database and tables
+│   │   ├── library.py         ITGC control library (20 controls)
+│   │   ├── sampling.py        Sample size table and seeded selection
+│   │   ├── extraction.py      Text from PDF / Excel / Word / CSV
+│   │   ├── workflow.py        Sign-offs, segregation of duties, revocation
+│   │   ├── audit.py           Hash-chained audit log
+│   │   ├── security.py        Passwords, tokens, roles
+│   │   ├── seed.py            First-start admin and demo data
+│   │   ├── agents/
+│   │   │   ├── llm.py         Claude client + offline mock
+│   │   │   ├── prompts.py     Versioned prompts
+│   │   │   ├── common.py      Evidence packing, citation checks
+│   │   │   ├── runner.py      Records each step as it runs
+│   │   │   └── dni.py · toe.py · reviewer.py
+│   │   └── routers/           auth · engagements · controls · audit_log
+│   └── tests/                 End-to-end workflow and AI client tests
+├── frontend/src/
+│   ├── api.ts                 API client and labels
+│   ├── components/ui.tsx      Shared UI pieces
+│   └── pages/                 Login · Engagements · Engagement · ControlWorkspace · Library · AuditLog · Users
+├── docs/                      Architecture, agents, API, data model, security, deployment
+├── Dockerfile · docker-compose.yml
+└── .github/workflows/ci.yml
+```
 
-1. **SSO** (Azure AD / Okta via OIDC) and MFA, in place of local passwords.
-2. **Database migrations** with Alembic. Today, tables are created on start.
-3. **Job queue** (Celery, Arq, or Azure Service Bus) for agent runs, so you can run many workers and have runs survive restarts.
-4. **Evidence storage** in Azure Blob or S3 with encryption at rest, and a malware scan on upload.
-5. **OCR** for scanned PDFs and screenshots, plus vision input to the model.
-6. **Multi-tenant isolation** (one firm, many clients) and retention / legal-hold rules.
-7. **Exports**: a signed PDF work paper for each control and a deficiency summary.
-8. **AI evaluation set**: a few gold-standard controls with known answers, re-run whenever a prompt changes.
-9. **Security review**: pen test, rate limits, and secrets in a key vault.
-10. **More frameworks** after ITGC: business process controls (P2P, O2C, R2R), SOC 1/2 mapping, and continuous monitoring.
+---
 
-Sample sizes follow common ITGC practice (see `sampling.py`). Swap in your own methodology table.
+## Documentation
+
+| Document | What's inside |
+|---|---|
+| [Architecture](docs/ARCHITECTURE.md) | System design, components, request flow, key design choices |
+| [Agents](docs/AGENTS.md) | Each agent step by step, prompts, guardrails, offline mode, how to add an agent |
+| [Data model](docs/DATA-MODEL.md) | Tables, relationships, statuses |
+| [API reference](docs/API.md) | All endpoints with roles and examples |
+| [Security](docs/SECURITY.md) | Roles, segregation of duties, audit trail, evidence integrity, known gaps |
+| [Deployment](docs/DEPLOYMENT.md) | Settings, Docker, Postgres, production checklist |
+| [Methodology](docs/METHODOLOGY.md) | ITGC domains, sampling table, conclusion rules |
+| [Roadmap](docs/ROADMAP.md) | What's next |
+| [Contributing](CONTRIBUTING.md) | How to set up, test and submit changes |
+| [Changelog](CHANGELOG.md) | Release history |
+
+Interactive API docs (Swagger) are at `http://localhost:8000/docs` when the server is running.
+
+---
+
+## Roadmap
+
+- [x] ITGC library, D&I / TOE / Reviewer agents, sampling, sign-offs, audit trail
+- [ ] SSO (Azure AD / Okta) and MFA
+- [ ] Alembic database migrations
+- [ ] Job queue for agent runs (scale out, survive restarts)
+- [ ] Cloud evidence storage with encryption and malware scan
+- [ ] OCR and screenshot reading
+- [ ] PDF work paper export
+- [ ] Business process controls (P2P, O2C, R2R) and SOC 1 / SOC 2 mapping
+
+Full list: [docs/ROADMAP.md](docs/ROADMAP.md)
+
+---
+
+## License
+
+Copyright © 2026. All rights reserved. No license is granted to use, copy or change this code without written permission. See [LICENSE](LICENSE).
+
+> **Disclaimer.** ControlLens supports auditors and does not replace professional judgement. Conclusions, sign-offs and opinions remain the responsibility of the engagement team.
