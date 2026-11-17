@@ -11,6 +11,7 @@ AI agents draft the audit work. People make the decisions. Every claim is tied t
 ![React](https://img.shields.io/badge/react-19-61DAFB)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688)
 ![Claude](https://img.shields.io/badge/AI-Claude-D97757)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 [Quick start](#quick-start) · [Demo](#demo-walkthrough) · [Architecture](docs/ARCHITECTURE.md) · [Agents](docs/AGENTS.md) · [API](docs/API.md) · [Security](docs/SECURITY.md) · [Deploy](docs/DEPLOYMENT.md)
 
@@ -307,6 +308,6 @@ Full list: [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## License
 
-Copyright © 2026. All rights reserved. No license is granted to use, copy or change this code without written permission. See [LICENSE](LICENSE).
+[MIT](LICENSE) © 2026 Shirish Patel
 
 > **Disclaimer.** ControlLens supports auditors and does not replace professional judgement. Conclusions, sign-offs and opinions remain the responsibility of the engagement team.
