@@ -61,14 +61,16 @@ ControlLens is built around three rules:
 | **CO**: Computer Operations | Batch jobs · Backups · Incident management · Interface monitoring |
 | **PD**: Program Development | New system approval · Data migration · Post-implementation review |
 
-Each control comes with its **attributes**, **D&I procedures**, **TOE procedures** and **evidence to request**. Teams copy controls into an engagement for each in-scope system, then tailor them.
+Each control comes with its **attributes**, **Design procedures**, **Operating procedures** and **evidence to request**. Teams copy controls into an engagement for each in-scope system, then tailor them.
 
 ### Three AI agents
 
+The agents follow the two standard SOX / PCAOB AS 2201 testing stages, design effectiveness (DE) and operating effectiveness (OE), plus a review stage.
+
 | Agent | What it does |
 |---|---|
-| **Design & Implementation (D&I)** | Maps risk to attributes, then to procedures, then to evidence. Judges whether each attribute is well designed and actually in place. Lists gaps and evidence to request. |
-| **Test of Operating Effectiveness (TOE)** | Tests every sample item against every attribute, in batches. Logs exceptions with the exact reason (for example, "access granted 28-May, owner approval 30-May"). |
+| **Design Effectiveness (DE)** | Maps risk to attributes, then to procedures, then to evidence. Judges whether each attribute is well designed and actually in place. Lists gaps and evidence to request. |
+| **Operating Effectiveness (OE)** | Tests every sample item against every attribute, in batches. Logs exceptions with the exact reason (for example, "access granted 28-May, owner approval 30-May"). |
 | **Reviewer** | Runs quality rules and an AI review of the work papers. Raises review notes, which block the reviewer's sign-off until they are closed. |
 
 ### Audit workflow
@@ -77,7 +79,7 @@ Each control comes with its **attributes**, **D&I procedures**, **TOE procedures
 - **Evidence** upload: PDF, Excel, CSV, Word, text and images, with text pulled out automatically
 - **Sampling engine**: frequency- and risk-based sample size, seeded random selection, override with reason
 - **Exceptions** tracked by severity: deficiency, significant deficiency, material weakness
-- **Preparer → reviewer sign-off** for both D&I and TOE
+- **Preparer → reviewer sign-off** for both DE and OE
 - **Review notes** with respond, address and close
 - **CSV export** of the engagement status
 
@@ -106,8 +108,8 @@ flowchart LR
     A --> D[(Postgres / SQLite)]
     A --> F[(Evidence files<br/>SHA-256)]
     A -->|background task| R[Agent runner]
-    R --> G1[D&I agent]
-    R --> G2[TOE agent]
+    R --> G1[Design Effectiveness agent]
+    R --> G2[Operating Effectiveness agent]
     R --> G3[Reviewer agent]
     G1 & G2 & G3 --> L[Claude API<br/>structured output]
     G1 & G2 --> C[Citation check<br/>guardrail]
@@ -118,11 +120,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    S0([Not started]) --> S1[D&I in progress]
-    S1 -->|preparer signs| S2[D&I prepared]
-    S2 -->|reviewer signs| S3[D&I reviewed]
-    S3 --> S4[TOE in progress]
-    S4 -->|preparer signs| S5[TOE prepared]
+    S0([Not started]) --> S1[Design in progress]
+    S1 -->|preparer signs| S2[Design prepared]
+    S2 -->|reviewer signs| S3[Design reviewed]
+    S3 --> S4[Operating in progress]
+    S4 -->|preparer signs| S5[Operating prepared]
     S5 -->|reviewer signs| S6([Complete])
     S2 & S3 -.->|control or evidence changed| S1
     S5 & S6 -.->|sample, evidence or exception changed| S4
@@ -199,24 +201,24 @@ Use control **APD-01 · User access provisioning**.
 
 | # | Who | Where | What happens |
 |---|---|---|---|
-| 1 | Preparer | Design & Implementation | Click **Run agent**. Watch it go through 5 steps. Each attribute gets a result with quoted evidence and a ✓ if the quote is verified. |
+| 1 | Preparer | Design Effectiveness | Click **Run agent**. Watch it go through 5 steps. Each attribute gets a result with quoted evidence and a ✓ if the quote is verified. |
 | 2 | Preparer | same | **Confirm conclusion**, then **Sign off as preparer**. |
 | 3 | Reviewer | same | **Sign off as reviewer**. Try it as the preparer: it's blocked by segregation of duties. |
 | 4 | Preparer | Sampling | Pick `SAP_new_users_FY26.csv` and click **Select sample**. The size comes from the methodology table, and the seed is saved. |
 | 5 | Preparer | Operating Effectiveness | **Run agent**. It tests 8 users × 4 attributes and catches EGARCIA: access was granted before the owner approved it. |
-| 6 | Reviewer | Review notes | Run the **Reviewer agent**. It raises notes such as "TOE conclusion not confirmed". |
-| 7 | Preparer | Evidence | Upload any new design file. The D&I sign-offs are revoked automatically. |
+| 6 | Reviewer | Review notes | Run the **Reviewer agent**. It raises notes such as "Operating conclusion not confirmed". |
+| 7 | Preparer | Evidence | Upload any new design file. The Design sign-offs are revoked automatically. |
 | 8 | Manager | Audit trail | Click **Verify integrity** to check the hash chain. |
 
 ---
 
 ## Screenshots
 
-| Engagement dashboard | Design & Implementation agent |
+| Engagement dashboard | Design Effectiveness agent |
 |---|---|
-| ![Engagement](docs/screenshots/engagement.png) | ![D&I](docs/screenshots/design-implementation.png) |
+| ![Engagement](docs/screenshots/engagement.png) | ![DE](docs/screenshots/design-effectiveness.png) |
 | **Operating Effectiveness agent** | **Tamper-evident audit trail** |
-| ![TOE](docs/screenshots/operating-effectiveness.png) | ![Audit](docs/screenshots/audit-trail.png) |
+| ![OE](docs/screenshots/operating-effectiveness.png) | ![Audit](docs/screenshots/audit-trail.png) |
 
 ---
 
@@ -255,7 +257,7 @@ controllens/
 │   │   │   ├── prompts.py     Versioned prompts
 │   │   │   ├── common.py      Evidence packing, citation checks
 │   │   │   ├── runner.py      Records each step as it runs
-│   │   │   └── dni.py · toe.py · reviewer.py
+│   │   │   └── design.py · operating.py · reviewer.py
 │   │   └── routers/           auth · engagements · controls · audit_log
 │   └── tests/                 End-to-end workflow and AI client tests
 ├── frontend/src/
@@ -290,7 +292,7 @@ Interactive API docs (Swagger) are at `http://localhost:8000/docs` when the serv
 
 ## Roadmap
 
-- [x] ITGC library, D&I / TOE / Reviewer agents, sampling, sign-offs, audit trail
+- [x] ITGC library, DE / OE / Reviewer agents, sampling, sign-offs, audit trail
 - [ ] SSO (Azure AD / Okta) and MFA
 - [ ] Alembic database migrations
 - [ ] Job queue for agent runs (scale out, survive restarts)

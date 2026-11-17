@@ -2,8 +2,8 @@
 
 Standard IT general controls across the four ITGC domains. Each template
 carries the control attributes (what must be true for the control to work),
-the design & implementation (D&I) procedures, the operating effectiveness
-(TOE) procedures, and the evidence an auditor would normally request.
+the design effectiveness (DE) procedures, the operating effectiveness
+(OE) procedures, and the evidence an auditor would normally request.
 
 Engagement teams copy a template into an engagement and can then tailor it.
 """
@@ -23,7 +23,7 @@ FREQUENCIES = [
 
 
 def _t(ref, domain, title, description, objective, risk, frequency, nature,
-       attributes, dni, toe, evidence):
+       attributes, design, operating, evidence):
     return {
         "ref": ref,
         "domain": domain,
@@ -34,8 +34,8 @@ def _t(ref, domain, title, description, objective, risk, frequency, nature,
         "frequency": frequency,
         "nature": nature,  # Manual | Automated | IT-dependent manual
         "attributes": [{"id": f"A{i+1}", "text": a} for i, a in enumerate(attributes)],
-        "dni_procedures": dni,
-        "toe_procedures": toe,
+        "design_procedures": design,
+        "operating_procedures": operating,
         "expected_evidence": evidence,
     }
 

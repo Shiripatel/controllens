@@ -37,8 +37,8 @@ flowchart TB
     end
 
     subgraph Agents
-        DNI["D&I agent"]
-        TOE["TOE agent"]
+        DE["Design Effectiveness agent"]
+        OE["Operating Effectiveness agent"]
         REV["Reviewer agent"]
         GR["Guardrails<br/>citation check · downgrade"]
         LLM["LLM layer<br/>Claude or offline mock"]
@@ -53,9 +53,9 @@ flowchart TB
     AUTH --> R1 & R2 & R3
     R2 --> WF & SAM & EXT
     R2 -->|start run| RUN
-    RUN --> DNI & TOE & REV
-    DNI & TOE --> GR
-    DNI & TOE & REV --> LLM
+    RUN --> DE & OE & REV
+    DE & OE --> GR
+    DE & OE & REV --> LLM
     LLM -->|API| CLAUDE(("Anthropic API"))
     WF & RUN --> AUD
     Server -->|"SQL, one transaction per request"| DB
@@ -73,7 +73,7 @@ flowchart TB
 | API client | `src/api.ts` | Adds the token, handles errors, signs out on 401 |
 | Shared UI | `src/components/ui.tsx` | Toasts, modals, tabs, badges, data loading hooks |
 | App shell | `src/App.tsx` | Routes, sign-in state, side bar, role checks |
-| Control workspace | `src/pages/ControlWorkspace.tsx` | The main screen: control, evidence, D&I, sampling, TOE, review, activity |
+| Control workspace | `src/pages/ControlWorkspace.tsx` | The main screen: control, evidence, DE, sampling, OE, review, activity |
 
 The front end has no business rules of its own. It shows or hides buttons based on role and status, but **the server checks everything again**.
 
@@ -136,11 +136,11 @@ sequenceDiagram
     participant UI as Web app
     participant API as FastAPI
     participant RUN as Agent runner
-    participant AG as Agent (D&I / TOE / Reviewer)
+    participant AG as Agent (DE / OE / Reviewer)
     participant LLM as Claude
     participant DB as Database
 
-    UI->>API: POST /controls/12/runs {agent: "toe"}
+    UI->>API: POST /controls/12/runs {agent: "operating"}
     API->>DB: Block if a run of this agent is already active
     API->>DB: Create run (queued, prompt version, input hash)
     API-->>UI: 202 Accepted (run id)
@@ -170,31 +170,31 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> not_started
-    not_started --> dni_in_progress: run D&I agent / confirm D&I
-    dni_in_progress --> dni_prepared: preparer signs<br/>(needs confirmed conclusion)
-    dni_prepared --> dni_reviewed: reviewer signs<br/>(different person, no open notes)
-    dni_reviewed --> toe_in_progress: run TOE agent / confirm TOE
-    toe_in_progress --> toe_prepared: preparer signs
-    toe_prepared --> toe_reviewed: reviewer signs
-    toe_reviewed --> [*]
+    not_started --> design_in_progress: run Design Effectiveness agent / confirm DE
+    design_in_progress --> design_prepared: preparer signs<br/>(needs confirmed conclusion)
+    design_prepared --> design_reviewed: reviewer signs<br/>(different person, no open notes)
+    design_reviewed --> operating_in_progress: run Operating Effectiveness agent / confirm OE
+    operating_in_progress --> operating_prepared: preparer signs
+    operating_prepared --> operating_reviewed: reviewer signs
+    operating_reviewed --> [*]
 
-    dni_prepared --> dni_in_progress: control or design evidence changed
-    dni_reviewed --> dni_in_progress: control or design evidence changed
-    toe_prepared --> toe_in_progress: sample, TOE evidence or exception changed
-    toe_reviewed --> toe_in_progress: sample, TOE evidence or exception changed
+    design_prepared --> design_in_progress: control or design evidence changed
+    design_reviewed --> design_in_progress: control or design evidence changed
+    operating_prepared --> operating_in_progress: sample, OE evidence or exception changed
+    operating_reviewed --> operating_in_progress: sample, OE evidence or exception changed
 ```
 
 What revokes which sign-offs:
 
-| Change | D&I sign-offs | TOE sign-offs |
+| Change | Design sign-offs | Operating sign-offs |
 |---|---|---|
 | Control definition edited (attributes, risk, frequency, nature, system...) | Revoked | Revoked |
 | Design or general evidence added / removed | Revoked | Revoked |
-| D&I conclusion changed | Revoked | Revoked |
-| Population or TOE evidence added / removed | – | Revoked |
+| Design conclusion changed | Revoked | Revoked |
+| Population or OE evidence added / removed | – | Revoked |
 | New sample selected | – | Revoked |
 | Exception status / severity changed | – | Revoked |
-| TOE conclusion changed | – | Revoked |
+| Operating conclusion changed | – | Revoked |
 
 Revoked sign-offs stay in the database (marked revoked), so the history is never lost.
 
@@ -204,7 +204,7 @@ Revoked sign-offs stay in the database (marked revoked), so the history is never
 
 | Choice | Why |
 |---|---|
-| **AI proposes, people decide** | Audit standards hold people responsible. The `controls.dni_conclusion` / `toe_conclusion` fields are only written by a person through `/conclusion`. Agents write to `agent_runs` only. |
+| **AI proposes, people decide** | Audit standards hold people responsible. The `controls.design_conclusion` / `operating_conclusion` fields are only written by a person through `/conclusion`. Agents write to `agent_runs` only. |
 | **Forced tool calls with a schema** | The model must answer in a fixed JSON shape. There's no free-text parsing. Missing fields cause a retry. |
 | **Citations checked by code** | The model can be wrong about what a document says. Code checks that each quote really exists in the cited file. |
 | **Math in code** | Sample sizes and roll-ups must be repeatable and explainable to a regulator. A seeded random generator means anyone can re-create the sample. |

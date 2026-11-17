@@ -13,7 +13,7 @@ SCHEMA = {
     "type": "object",
     "properties": {"notes": {"type": "array", "items": {
         "type": "object",
-        "properties": {"stage": {"type": "string", "enum": ["dni", "toe"]},
+        "properties": {"stage": {"type": "string", "enum": ["design", "operating"]},
                        "severity": {"type": "string", "enum": ["low", "medium", "high"]},
                        "text": {"type": "string"}},
         "required": ["stage", "severity", "text"]}},
@@ -29,46 +29,46 @@ def _latest(db, cid, agent):
 
 def run(ctx: RunContext) -> dict:
     c, db = ctx.control, ctx.db
-    dni, toe = _latest(db, c.id, "dni"), _latest(db, c.id, "toe")
+    design, operating = _latest(db, c.id, "design"), _latest(db, c.id, "operating")
     current_ids = sorted(e.id for e in ctx.evidence)
 
     def rules():
         notes = []
-        if not dni:
-            notes.append(("dni", "high", "No completed D&I agent run or work on file."))
-        if dni and sorted(dni.evidence_ids or []) != current_ids:
-            notes.append(("dni", "medium", f"Evidence changed since D&I run #{dni.id}; re-run or document why results still hold."))
-        if dni and dni.guardrail_flags:
-            notes.append(("dni", "high", f"D&I run #{dni.id} has {len(dni.guardrail_flags)} citation/guardrail flags to resolve."))
-        if c.dni_conclusion is None and dni:
-            notes.append(("dni", "medium", "D&I conclusion has not been confirmed by the preparer."))
-        if toe:
-            if sorted(toe.evidence_ids or []) != current_ids:
-                notes.append(("toe", "medium", f"Evidence changed since TOE run #{toe.id}."))
-            if c.toe_conclusion is None:
-                notes.append(("toe", "medium", "TOE conclusion has not been confirmed by the preparer."))
+        if not design:
+            notes.append(("design", "high", "No completed Design Effectiveness agent run or work on file."))
+        if design and sorted(design.evidence_ids or []) != current_ids:
+            notes.append(("design", "medium", f"Evidence changed since Design run #{design.id}; re-run or document why results still hold."))
+        if design and design.guardrail_flags:
+            notes.append(("design", "high", f"Design run #{design.id} has {len(design.guardrail_flags)} citation/guardrail flags to resolve."))
+        if c.design_conclusion is None and design:
+            notes.append(("design", "medium", "Design conclusion has not been confirmed by the preparer."))
+        if operating:
+            if sorted(operating.evidence_ids or []) != current_ids:
+                notes.append(("operating", "medium", f"Evidence changed since Operating run #{operating.id}."))
+            if c.operating_conclusion is None:
+                notes.append(("operating", "medium", "Operating conclusion has not been confirmed by the preparer."))
             open_x = db.query(Exception_).filter_by(control_id=c.id, status="open").count()
-            if open_x and (c.toe_conclusion or {}).get("operating") == "operating_effectively":
-                notes.append(("toe", "high", f"{open_x} open exception(s) but the conclusion is 'operating effectively'; document why the exceptions do not change the conclusion."))
-            if toe.guardrail_flags:
-                notes.append(("toe", "high", f"TOE run #{toe.id} has {len(toe.guardrail_flags)} guardrail flags."))
+            if open_x and (c.operating_conclusion or {}).get("operating") == "operating_effectively":
+                notes.append(("operating", "high", f"{open_x} open exception(s) but the conclusion is 'operating effectively'; document why the exceptions do not change the conclusion."))
+            if operating.guardrail_flags:
+                notes.append(("operating", "high", f"Operating run #{operating.id} has {len(operating.guardrail_flags)} guardrail flags."))
             sample = db.query(Sample).filter_by(control_id=c.id, active=True).first()
             if determine_test_type(c.nature, c.frequency)["method"] == "random":
                 if not sample:
-                    notes.append(("toe", "high", "No sample on file for a sampling-based test."))
+                    notes.append(("operating", "high", "No sample on file for a sampling-based test."))
                 else:
                     need, _ = sample_size(c.frequency, c.risk_rating, sample.population_size)
                     if sample.sample_size < need:
-                        notes.append(("toe", "high", f"Sample size {sample.sample_size} is below methodology minimum {need}."))
+                        notes.append(("operating", "high", f"Sample size {sample.sample_size} is below methodology minimum {need}."))
                     if not sample.population_evidence_id:
-                        notes.append(("toe", "medium", "Population source file not linked; completeness of population not evidenced."))
+                        notes.append(("operating", "medium", "Population source file not linked; completeness of population not evidenced."))
         return [{"stage": s, "severity": v, "text": t} for s, v, t in notes]
 
     rule_notes = ctx.step("rules", "Run quality rules", rules)
 
     def ai_review():
-        work = {"dni_result": dni.result if dni else None, "dni_conclusion_confirmed": c.dni_conclusion,
-                "toe_result": toe.result if toe else None, "toe_conclusion_confirmed": c.toe_conclusion}
+        work = {"design_result": design.result if design else None, "design_conclusion_confirmed": c.design_conclusion,
+                "operating_result": operating.result if operating else None, "operating_conclusion_confirmed": c.operating_conclusion}
         work_txt = json.dumps(work, default=str)[:40000]
         return call_structured(
             tool_name="record_review_notes", tool_description="Record review notes",

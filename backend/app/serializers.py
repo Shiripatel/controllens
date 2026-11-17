@@ -25,12 +25,12 @@ def control(c: Control, full=False):
          "risk_rating": c.risk_rating, "key_control": c.key_control, "status": c.status,
          "system": system(c.system) if c.system else None, "preparer_id": c.preparer_id,
          "reviewer_id": c.reviewer_id, "row_version": c.row_version,
-         "dni_conclusion": c.dni_conclusion, "toe_conclusion": c.toe_conclusion,
+         "design_conclusion": c.design_conclusion, "operating_conclusion": c.operating_conclusion,
          "updated_at": c.updated_at.isoformat() if c.updated_at else None}
     if full:
         d.update(description=c.description, objective=c.objective, risk=c.risk,
-                 attributes=c.attributes, dni_procedures=c.dni_procedures,
-                 toe_procedures=c.toe_procedures, expected_evidence=c.expected_evidence,
+                 attributes=c.attributes, design_procedures=c.design_procedures,
+                 operating_procedures=c.operating_procedures, expected_evidence=c.expected_evidence,
                  library_ref=c.library_ref, system_id=c.system_id)
     return d
 

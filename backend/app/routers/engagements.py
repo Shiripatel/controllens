@@ -40,13 +40,13 @@ def _stats(db, e: Engagement):
     ids = [c.id for c in controls] or [-1]
     return {
         "controls": len(controls), "by_status": by_status, "by_domain": by_domain,
-        "complete": by_status.get("toe_reviewed", 0),
+        "complete": by_status.get("operating_reviewed", 0),
         "open_exceptions": db.query(Exception_).filter(Exception_.control_id.in_(ids),
                                                        Exception_.status == "open").count(),
         "open_notes": db.query(ReviewNote).filter(ReviewNote.control_id.in_(ids),
                                                   ReviewNote.status != "closed").count(),
-        "deficient": sum(1 for c in controls if (c.toe_conclusion or {}).get("operating") == "not_operating_effectively"
-                         or (c.dni_conclusion or {}).get("design") == "not_effective"),
+        "deficient": sum(1 for c in controls if (c.operating_conclusion or {}).get("operating") == "not_operating_effectively"
+                         or (c.design_conclusion or {}).get("design") == "not_effective"),
     }
 
 
@@ -195,8 +195,8 @@ def add_from_library(eid: int, body: AddFromLibrary, db: Session = Depends(get_d
                         domain=t["domain"], title=t["title"], description=t["description"],
                         objective=t["objective"], risk=t["risk"], frequency=t["frequency"],
                         nature=t["nature"], risk_rating=body.risk_rating,
-                        attributes=t["attributes"], dni_procedures=t["dni_procedures"],
-                        toe_procedures=t["toe_procedures"], expected_evidence=t["expected_evidence"])
+                        attributes=t["attributes"], design_procedures=t["design_procedures"],
+                        operating_procedures=t["operating_procedures"], expected_evidence=t["expected_evidence"])
             db.add(c)
             db.flush()
             created.append(c)
@@ -251,13 +251,13 @@ def export_csv(eid: int, db: Session = Depends(get_db), user: User = Depends(cur
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Ref", "Domain", "Title", "System", "Frequency", "Nature", "Risk", "Status",
-                "D&I design", "D&I implementation", "TOE conclusion", "Open exceptions",
+                "Design conclusion", "Implementation", "Operating conclusion", "Open exceptions",
                 "Preparer", "Reviewer"])
     for c in db.query(Control).filter_by(engagement_id=eid).order_by(Control.ref):
         w.writerow([c.ref, c.domain, c.title, c.system.name if c.system else "", c.frequency, c.nature,
-                    c.risk_rating, c.status, (c.dni_conclusion or {}).get("design", ""),
-                    (c.dni_conclusion or {}).get("implementation", ""),
-                    (c.toe_conclusion or {}).get("operating", ""),
+                    c.risk_rating, c.status, (c.design_conclusion or {}).get("design", ""),
+                    (c.design_conclusion or {}).get("implementation", ""),
+                    (c.operating_conclusion or {}).get("operating", ""),
                     db.query(Exception_).filter_by(control_id=c.id, status="open").count(),
                     users.get(c.preparer_id, ""), users.get(c.reviewer_id, "")])
     audit.log(db, user, "engagement.exported", "engagement", eid, {"format": "csv"}, engagement_id=eid)

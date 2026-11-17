@@ -79,7 +79,7 @@ Error body: `{"detail": "Plain-English message"}`. Every response has an `X-Requ
 | Method | Path | Min role | What it does |
 |---|---|---|---|
 | GET | `/controls/{cid}/evidence` | viewer | List files |
-| POST | `/controls/{cid}/evidence` | preparer | Multipart upload: `file`, `purpose` (design / toe / population / general), `description` |
+| POST | `/controls/{cid}/evidence` | preparer | Multipart upload: `file`, `purpose` (design / operating / population / general), `description` |
 | GET | `/evidence/{id}/text` | viewer | Text the agents read |
 | GET | `/evidence/{id}/download` | viewer | Original file. The hash is checked first. |
 | DELETE | `/evidence/{id}` | preparer | Soft delete. Revokes affected sign-offs. |
@@ -95,15 +95,15 @@ Error body: `{"detail": "Plain-English message"}`. Every response has an `X-Requ
 
 | Method | Path | Min role | What it does |
 |---|---|---|---|
-| POST | `/controls/{cid}/runs` | preparer | Start `{agent: "dni" \| "toe" \| "reviewer"}` → **202** with run id |
-| GET | `/controls/{cid}/runs?agent=toe` | viewer | Run history (summary) |
+| POST | `/controls/{cid}/runs` | preparer | Start `{agent: "design" \| "operating" \| "reviewer"}` → **202** with run id |
+| GET | `/controls/{cid}/runs?agent=operating` | viewer | Run history (summary) |
 | GET | `/runs/{rid}` | viewer | Full run: steps, result, flags. Check this until `status` is `succeeded` or `failed`. |
 
 Example:
 
 ```bash
 RUN=$(curl -s -X POST localhost:8000/api/controls/1/runs -H "Authorization: Bearer $T" \
-  -H "Content-Type: application/json" -d '{"agent":"dni"}' | jq .id)
+  -H "Content-Type: application/json" -d '{"agent":"design"}' | jq .id)
 curl -s localhost:8000/api/runs/$RUN -H "Authorization: Bearer $T" | jq '.status, .result.proposed_conclusion'
 ```
 
@@ -112,7 +112,7 @@ curl -s localhost:8000/api/runs/$RUN -H "Authorization: Bearer $T" | jq '.status
 | Method | Path | Min role | What it does |
 |---|---|---|---|
 | POST | `/controls/{cid}/conclusion` | preparer | `{stage, run_id?, conclusion: {...}, rationale}`. A rationale is required if you differ from the agent. |
-| POST | `/controls/{cid}/signoffs` | preparer / reviewer | `{stage: "dni" \| "toe", kind: "prepare" \| "review", comment}` |
+| POST | `/controls/{cid}/signoffs` | preparer / reviewer | `{stage: "design" \| "operating", kind: "prepare" \| "review", comment}` |
 
 Sign-off rules:
 
@@ -129,7 +129,7 @@ Sign-off rules:
 | POST | `/controls/{cid}/notes` | preparer | `{stage, severity, text}` |
 | PATCH | `/notes/{nid}` | preparer | `{response?, status?}`. Setting `status: closed` needs reviewer role. |
 | GET | `/controls/{cid}/exceptions` | viewer | List exceptions |
-| PATCH | `/exceptions/{xid}` | preparer | `{status?, severity?, description?}`. Revokes TOE sign-offs. |
+| PATCH | `/exceptions/{xid}` | preparer | `{status?, severity?, description?}`. Revokes Operating sign-offs. |
 
 ### Audit and health
 

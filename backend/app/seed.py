@@ -105,8 +105,8 @@ def run(db: Session):
         c = Control(engagement_id=e.id, system_id=sap.id, library_ref=t["ref"], ref=t["ref"] + "-SAP",
                     domain=t["domain"], title=t["title"], description=t["description"],
                     objective=t["objective"], risk=t["risk"], frequency=t["frequency"], nature=t["nature"],
-                    attributes=t["attributes"], dni_procedures=t["dni_procedures"],
-                    toe_procedures=t["toe_procedures"], expected_evidence=t["expected_evidence"],
+                    attributes=t["attributes"], design_procedures=t["design_procedures"],
+                    operating_procedures=t["operating_procedures"], expected_evidence=t["expected_evidence"],
                     preparer_id=prep.id, reviewer_id=rev.id)
         db.add(c)
         db.flush()
@@ -114,6 +114,6 @@ def run(db: Session):
     _add_file(db, first, "Access_Management_Policy_v3.2.txt", POLICY, "design", prep)
     _add_file(db, first, "APD-01_Walkthrough_RITM0010231.txt", WALKTHROUGH, "design", prep)
     _add_file(db, first, "SAP_new_users_FY26.csv", POPULATION, "population", prep)
-    _add_file(db, first, "ServiceNow_access_tickets_FY26.csv", TICKETS, "toe", prep)
+    _add_file(db, first, "ServiceNow_access_tickets_FY26.csv", TICKETS, "operating", prep)
     audit.log(db, None, "system.demo_seeded", "engagement", e.id, {}, engagement_id=e.id)
     db.commit()

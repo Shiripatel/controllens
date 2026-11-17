@@ -46,8 +46,8 @@ erDiagram
         string risk_rating
         json attributes
         string status
-        json dni_conclusion "set by a person"
-        json toe_conclusion "set by a person"
+        json design_conclusion "set by a person"
+        json operating_conclusion "set by a person"
         int row_version
     }
     EVIDENCE {
@@ -55,7 +55,7 @@ erDiagram
         int control_id FK
         string filename
         string sha256
-        string purpose "design | toe | population | general"
+        string purpose "design | operating | population | general"
         text extracted_text
         bool deleted
     }
@@ -71,7 +71,7 @@ erDiagram
     AGENT_RUNS {
         int id PK
         int control_id FK
-        string agent "dni | toe | reviewer"
+        string agent "design | operating | reviewer"
         string status
         string model
         string prompt_version
@@ -84,7 +84,7 @@ erDiagram
         int id PK
         int control_id FK
         int user_id FK
-        string stage "dni | toe"
+        string stage "design | operating"
         string kind "prepare | review"
         bool revoked
     }
@@ -120,19 +120,19 @@ erDiagram
 | Status | Meaning |
 |---|---|
 | `not_started` | Nothing done yet |
-| `dni_in_progress` | D&I agent run or D&I conclusion confirmed |
-| `dni_prepared` | Preparer signed D&I |
-| `dni_reviewed` | Reviewer signed D&I |
-| `toe_in_progress` | TOE work started |
-| `toe_prepared` | Preparer signed TOE |
-| `toe_reviewed` | Reviewer signed TOE. The control is complete. |
+| `design_in_progress` | Design Effectiveness agent run or Design conclusion confirmed |
+| `design_prepared` | Preparer signed DE |
+| `design_reviewed` | Reviewer signed DE |
+| `operating_in_progress` | OE work started |
+| `operating_prepared` | Preparer signed OE |
+| `operating_reviewed` | Reviewer signed OE. The control is complete. |
 
 ## Conclusion values
 
 | Field | Values |
 |---|---|
-| `dni_conclusion.design` | `effective`, `not_effective`, `insufficient_evidence` |
-| `dni_conclusion.implementation` | `implemented`, `not_implemented`, `insufficient_evidence` |
-| `toe_conclusion.operating` | `operating_effectively`, `not_operating_effectively`, `insufficient_evidence` |
+| `design_conclusion.design` | `effective`, `not_effective`, `insufficient_evidence` |
+| `design_conclusion.implementation` | `implemented`, `not_implemented`, `insufficient_evidence` |
+| `operating_conclusion.operating` | `operating_effectively`, `not_operating_effectively`, `insufficient_evidence` |
 
 Each conclusion also stores `rationale`, `run_id`, `overrode_agent` and `confirmed_by`.

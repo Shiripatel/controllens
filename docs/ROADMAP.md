@@ -3,7 +3,7 @@
 ## v1.0 (done)
 
 - ITGC library: 20 controls across APD, PC, CO, PD
-- D&I, TOE and Reviewer agents with step-by-step trace
+- DE, OE and Reviewer agents with step-by-step trace
 - Citation checks, downgrade of unsupported claims, code-only math
 - Sampling engine with seeded selection and override rules
 - Preparer / reviewer sign-off, segregation of duties, automatic revocation

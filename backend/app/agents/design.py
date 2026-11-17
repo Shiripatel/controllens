@@ -1,4 +1,4 @@
-"""Design & Implementation agent.
+"""Design Effectiveness agent.
 
 Steps: 1 Set context -> 2 Map risk to attributes -> 3 Map attributes to procedures
 -> 4 Map procedures to evidence & evaluate -> 5 Check citations (guardrail)
@@ -56,7 +56,7 @@ def run(ctx: RunContext) -> dict:
 
     def set_context():
         if not c.attributes:
-            raise StepFailed("Control has no attributes. Add attributes before running D&I.")
+            raise StepFailed("Control has no attributes. Add attributes before running DE.")
         return {
             "control": f"{c.ref} {c.title}",
             "system": c.system.name if c.system else None,
@@ -73,13 +73,13 @@ def run(ctx: RunContext) -> dict:
         return {"attributes": [
             {"attribute_id": a["id"],
              "addresses_risk": f"Helps prevent: {c.risk[:120]}",
-             "procedures": c.dni_procedures[:2] or ["Inspect supporting documentation"]}
+             "procedures": c.design_procedures[:2] or ["Inspect supporting documentation"]}
             for a in c.attributes], "suggested_additional_attributes": []}
 
     plan = ctx.step("plan", "Map risk to attributes and procedures", lambda: call_structured(
-        tool_name="record_dni_plan", tool_description="Record the D&I plan",
-        schema=PLAN_SCHEMA, system=prompts.DNI_PLAN,
-        user=control_block(c) + "\n\nStandard D&I procedures:\n- " + "\n- ".join(c.dni_procedures),
+        tool_name="record_design_plan", tool_description="Record the DE plan",
+        schema=PLAN_SCHEMA, system=prompts.DESIGN_PLAN,
+        user=control_block(c) + "\n\nStandard Design procedures:\n- " + "\n- ".join(c.design_procedures),
         mock=mock_plan))
 
     # --- Step 4: evaluate against evidence
@@ -91,7 +91,7 @@ def run(ctx: RunContext) -> dict:
                 results.append({"attribute_id": a["id"], "design_assessment": "adequate",
                                 "implemented": "yes",
                                 "procedure_evidence_map": [{"procedure": p, "evidence_ids": [f"E{ev.id}"]}
-                                                           for p in c.dni_procedures[:1]],
+                                                           for p in c.design_procedures[:1]],
                                 "citations": [{"evidence_id": f"E{ev.id}", "locator": "", "excerpt": line}],
                                 "reasoning": f"[offline mock] {ev.filename} contains text matching this attribute."})
             else:
@@ -105,8 +105,8 @@ def run(ctx: RunContext) -> dict:
 
     plan_txt = "\n".join(f"{p['attribute_id']}: {'; '.join(p['procedures'])}" for p in plan["attributes"])
     evaluation = ctx.step("evaluate", "Map procedures to evidence and evaluate", lambda: call_structured(
-        tool_name="record_dni_evaluation", tool_description="Record D&I evaluation per attribute",
-        schema=EVAL_SCHEMA, system=prompts.DNI_EVALUATE,
+        tool_name="record_design_evaluation", tool_description="Record DE evaluation per attribute",
+        schema=EVAL_SCHEMA, system=prompts.DESIGN_EVALUATE,
         user=f"{control_block(c)}\n\nPLAN:\n{plan_txt}\n\n{evidence_block(ctx.evidence)}",
         mock=mock_eval))
 

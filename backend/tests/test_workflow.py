@@ -56,8 +56,8 @@ def test_full_itgc_flow(client, H):
     ev = client.get(f"/api/controls/{cid}/evidence", headers=H["prep"]).json()
     assert len(ev) == 4
 
-    # D&I agent
-    r = client.post(f"/api/controls/{cid}/runs", json={"agent": "dni"}, headers=H["prep"])
+    # Design Effectiveness agent
+    r = client.post(f"/api/controls/{cid}/runs", json={"agent": "design"}, headers=H["prep"])
     assert r.status_code == 202
     run = client.get(f"/api/runs/{r.json()['id']}", headers=H["prep"]).json()
     assert run["status"] == "succeeded", run["error"]
@@ -65,36 +65,36 @@ def test_full_itgc_flow(client, H):
     proposed = run["result"]["proposed_conclusion"]
 
     # Preparer cannot sign before confirming the conclusion
-    r = client.post(f"/api/controls/{cid}/signoffs", json={"stage": "dni", "kind": "prepare"}, headers=H["prep"])
+    r = client.post(f"/api/controls/{cid}/signoffs", json={"stage": "design", "kind": "prepare"}, headers=H["prep"])
     assert r.status_code == 409
 
     # Override without reason is rejected
     r = client.post(f"/api/controls/{cid}/conclusion", headers=H["prep"], json={
-        "stage": "dni", "run_id": run["id"], "conclusion": {"design": "not_effective", "implementation": "implemented"}})
+        "stage": "design", "run_id": run["id"], "conclusion": {"design": "not_effective", "implementation": "implemented"}})
     assert r.status_code == 422
     r = client.post(f"/api/controls/{cid}/conclusion", headers=H["prep"], json={
-        "stage": "dni", "run_id": run["id"],
+        "stage": "design", "run_id": run["id"],
         "conclusion": {"design": "effective", "implementation": "implemented"},
         "rationale": "Policy and walkthrough support all four attributes."})
     assert r.status_code == 200, r.text
-    assert client.post(f"/api/controls/{cid}/signoffs", json={"stage": "dni", "kind": "prepare"},
+    assert client.post(f"/api/controls/{cid}/signoffs", json={"stage": "design", "kind": "prepare"},
                        headers=H["prep"]).status_code == 201
 
     # Preparer cannot review own work (SoD) - manager prepared? no: prep did; manager role ok but test prep
-    r = client.post(f"/api/controls/{cid}/signoffs", json={"stage": "dni", "kind": "review"}, headers=H["prep"])
+    r = client.post(f"/api/controls/{cid}/signoffs", json={"stage": "design", "kind": "review"}, headers=H["prep"])
     assert r.status_code == 403
     # Open review note blocks review
-    n = client.post(f"/api/controls/{cid}/notes", json={"stage": "dni", "text": "Add walkthrough date"},
+    n = client.post(f"/api/controls/{cid}/notes", json={"stage": "design", "text": "Add walkthrough date"},
                     headers=H["rev"]).json()
-    assert client.post(f"/api/controls/{cid}/signoffs", json={"stage": "dni", "kind": "review"},
+    assert client.post(f"/api/controls/{cid}/signoffs", json={"stage": "design", "kind": "review"},
                        headers=H["rev"]).status_code == 409
     assert client.patch(f"/api/notes/{n['id']}", json={"status": "closed"}, headers=H["prep"]).status_code == 403
     assert client.patch(f"/api/notes/{n['id']}", json={"status": "closed"}, headers=H["rev"]).status_code == 200
-    r = client.post(f"/api/controls/{cid}/signoffs", json={"stage": "dni", "kind": "review"}, headers=H["rev"])
-    assert r.status_code == 201 and r.json()["status"] == "dni_reviewed"
+    r = client.post(f"/api/controls/{cid}/signoffs", json={"stage": "design", "kind": "review"}, headers=H["rev"])
+    assert r.status_code == 201 and r.json()["status"] == "design_reviewed"
 
-    # TOE without sample fails cleanly
-    r = client.post(f"/api/controls/{cid}/runs", json={"agent": "toe"}, headers=H["prep"])
+    # OE without sample fails cleanly
+    r = client.post(f"/api/controls/{cid}/runs", json={"agent": "operating"}, headers=H["prep"])
     run = client.get(f"/api/runs/{r.json()['id']}", headers=H["prep"]).json()
     assert run["status"] == "failed" and "sample" in run["error"].lower()
 
@@ -104,7 +104,7 @@ def test_full_itgc_flow(client, H):
                     headers=H["prep"]).json()
     assert s["population_size"] == 8 and s["sample_size"] == 8 and s["method"] == "all_items"
 
-    r = client.post(f"/api/controls/{cid}/runs", json={"agent": "toe"}, headers=H["prep"])
+    r = client.post(f"/api/controls/{cid}/runs", json={"agent": "operating"}, headers=H["prep"])
     run = client.get(f"/api/runs/{r.json()['id']}", headers=H["prep"]).json()
     assert run["status"] == "succeeded", run["error"]
     assert run["result"]["proposed_conclusion"]["operating"] == "not_operating_effectively"
@@ -116,15 +116,15 @@ def test_full_itgc_flow(client, H):
     rr = client.get(f"/api/runs/{r.json()['id']}", headers=H["rev"]).json()
     assert rr["status"] == "succeeded", rr["error"]
     texts = [n["text"] for n in client.get(f"/api/controls/{cid}/notes", headers=H["rev"]).json()]
-    assert any("TOE conclusion has not been confirmed" in t for t in texts)
+    assert any("Operating conclusion has not been confirmed" in t for t in texts)
 
-    # Evidence change revokes D&I sign-offs
+    # Evidence change revokes Design sign-offs
     up = client.post(f"/api/controls/{cid}/evidence", headers=H["prep"],
                      files={"file": ("extra.txt", b"Additional design note", "text/plain")},
                      data={"purpose": "design"})
     assert up.status_code == 201
     ctl = client.get(f"/api/controls/{cid}", headers=H["prep"]).json()
-    assert ctl["status"] == "dni_in_progress"
+    assert ctl["status"] == "design_in_progress"
     assert all(s["revoked"] for s in ctl["signoffs"])
 
     # Duplicate upload blocked, bad file type blocked

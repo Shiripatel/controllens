@@ -58,8 +58,8 @@ export const api = {
 
 export const LABELS: Record<string, string> = {
   not_started: "Not started",
-  dni_in_progress: "D&I in progress", dni_prepared: "D&I prepared", dni_reviewed: "D&I reviewed",
-  toe_in_progress: "TOE in progress", toe_prepared: "TOE prepared", toe_reviewed: "Complete",
+  design_in_progress: "Design in progress", design_prepared: "Design prepared", design_reviewed: "Design reviewed",
+  operating_in_progress: "Operating in progress", operating_prepared: "Operating prepared", operating_reviewed: "Complete",
   effective: "Effective", not_effective: "Not effective", insufficient_evidence: "Needs more evidence",
   implemented: "Implemented", not_implemented: "Not implemented",
   operating_effectively: "Operating effectively", not_operating_effectively: "Not operating effectively",

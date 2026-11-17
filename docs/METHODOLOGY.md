@@ -15,12 +15,14 @@ The full list of 20 controls, with attributes and procedures, is in `backend/app
 
 ## Two stages of testing
 
+Terms follow PCAOB AS 2201 and common SOX practice: **design effectiveness** and **operating effectiveness**. Design effectiveness includes confirming the control was actually put in place (implementation), usually through a walkthrough.
+
 | Stage | Question | Typical evidence |
 |---|---|---|
-| **Design & Implementation (D&I)** | If the control works as described, does it address the risk? Was it actually in place at least once? | Policy, procedure, walkthrough notes, one example |
-| **Test of Operating Effectiveness (TOE)** | Did the control work for every sampled item through the period? | Population, sample tickets, approvals, logs, system reports |
+| **Design Effectiveness (DE)** | If the control works as described, does it address the risk? Was it actually in place at least once? | Policy, procedure, walkthrough notes, one example |
+| **Operating Effectiveness (OE)** | Did the control work for every sampled item through the period? | Population, sample tickets, approvals, logs, system reports |
 
-TOE should start after D&I is reviewed. The TOE agent flags it if D&I isn't reviewed yet.
+OE should start after DE is reviewed. The Operating Effectiveness agent flags it if DE isn't reviewed yet.
 
 ## Attributes
 
@@ -31,7 +33,7 @@ An **attribute** is one thing that must be true for the control to work. For exa
 - A3: Access granted matches what was approved
 - A4: The approver is independent of the person granting access
 
-D&I checks each attribute once. TOE checks every attribute for every sample item.
+DE checks each attribute once. OE checks every attribute for every sample item.
 
 ## Test type
 
@@ -68,7 +70,7 @@ The population file must be uploaded as evidence with purpose **Population**, so
 
 These are calculated by code from the attribute or item results:
 
-**D&I: design**
+**DE: design**
 
 | If any attribute is... | Proposed conclusion |
 |---|---|
@@ -76,9 +78,9 @@ These are calculated by code from the attribute or item results:
 | unable to assess (and none inadequate) | Needs more evidence |
 | all adequate | Effective |
 
-**D&I: implementation.** Same logic, using implemented: yes / no / unable.
+**DE: implementation.** Same logic, using implemented: yes / no / unable.
 
-**TOE**
+**OE**
 
 | If... | Proposed conclusion |
 |---|---|
@@ -96,4 +98,4 @@ Each failed item × attribute becomes an exception record with a severity, set b
 - **Significant deficiency**
 - **Material weakness**
 
-Status: open → accepted / remediated. Changing an exception revokes TOE sign-offs, so the reviewer sees the latest position.
+Status: open → accepted / remediated. Changing an exception revokes Operating sign-offs, so the reviewer sees the latest position.

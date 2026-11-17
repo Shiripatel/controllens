@@ -58,11 +58,11 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]): [T | undefine
 // ---------- small components
 const TONE: Record<string, string> = {
   effective: "good", implemented: "good", operating_effectively: "good", adequate: "good", yes: "good",
-  pass: "good", toe_reviewed: "good", dni_reviewed: "info", closed: "muted", remediated: "good",
+  pass: "good", operating_reviewed: "good", design_reviewed: "info", closed: "muted", remediated: "good",
   succeeded: "good", not_effective: "bad", not_implemented: "bad", not_operating_effectively: "bad",
   inadequate: "bad", no: "bad", fail: "bad", failed: "bad", high: "bad", open: "warn",
   insufficient_evidence: "warn", unable_to_assess: "warn", medium: "warn", running: "info", queued: "info",
-  dni_in_progress: "info", toe_in_progress: "info", dni_prepared: "info", toe_prepared: "info",
+  design_in_progress: "info", operating_in_progress: "info", design_prepared: "info", operating_prepared: "info",
   low: "muted", not_started: "muted", addressed: "info", accepted: "muted", deficiency: "warn",
   significant: "bad", material: "bad",
 };

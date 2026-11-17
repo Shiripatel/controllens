@@ -54,9 +54,9 @@ def run(ctx: RunContext) -> dict:
     db = ctx.db
 
     def set_context():
-        if c.status not in ("dni_reviewed", "toe_in_progress", "toe_prepared"):
-            ctx.flags.append({"type": "dni_not_reviewed", "where": "context",
-                              "detail": "D&I is not yet reviewed; TOE results may need rework"})
+        if c.status not in ("design_reviewed", "operating_in_progress", "operating_prepared"):
+            ctx.flags.append({"type": "design_not_reviewed", "where": "context",
+                              "detail": "DE is not yet reviewed; OE results may need rework"})
         return {"control": f"{c.ref} {c.title}", "status": c.status,
                 "evidence_files": [{"id": f"E{e.id}", "file": e.filename, "purpose": e.purpose}
                                    for e in ctx.evidence]}
@@ -65,13 +65,13 @@ def run(ctx: RunContext) -> dict:
 
     def mock_proc():
         return {"procedures": [{"attribute_id": a["id"],
-                                "test_steps": c.toe_procedures[-2:] or ["Inspect evidence for the sample item"],
+                                "test_steps": c.operating_procedures[-2:] or ["Inspect evidence for the sample item"],
                                 "pass_criteria": f"Evidence shows: {a['text']}"} for a in c.attributes]}
 
     procs = ctx.step("procedures", "Map attributes to test procedures", lambda: call_structured(
-        tool_name="record_toe_procedures", tool_description="Record TOE test steps per attribute",
-        schema=PROC_SCHEMA, system=prompts.TOE_PROCEDURES,
-        user=control_block(c) + "\n\nStandard TOE procedures:\n- " + "\n- ".join(c.toe_procedures),
+        tool_name="record_operating_procedures", tool_description="Record OE test steps per attribute",
+        schema=PROC_SCHEMA, system=prompts.OE_PROCEDURES,
+        user=control_block(c) + "\n\nStandard Operating procedures:\n- " + "\n- ".join(c.operating_procedures),
         mock=mock_proc))
 
     test_type = ctx.step("test_type", "Decide test type", lambda: determine_test_type(c.nature, c.frequency))
@@ -85,7 +85,7 @@ def run(ctx: RunContext) -> dict:
                     "items": items[:1], "note": "Test of one for automated control"}
         if not sample:
             raise StepFailed("No sample selected. Upload a population and generate a sample on the "
-                             "Sampling tab, then run TOE again.")
+                             "Sampling tab, then run OE again.")
         return {"method": sample.method, "sample_id": sample.id, "seed": sample.seed,
                 "population_size": sample.population_size, "sample_size": sample.sample_size,
                 "rationale": sample.rationale, "items": sample.items}
@@ -94,13 +94,13 @@ def run(ctx: RunContext) -> dict:
     items = test_plan["items"]
     proc_txt = "\n".join(f"{p['attribute_id']}: {' | '.join(p['test_steps'])} (pass if: {p['pass_criteria']})"
                          for p in procs["procedures"])
-    toe_evidence = [e for e in ctx.evidence if e.purpose != "population"] or ctx.evidence
+    operating_evidence = [e for e in ctx.evidence if e.purpose != "population"] or ctx.evidence
 
     def mock_test(batch):
         out = []
         for it in batch:
             terms = [str(v).lower() for v in it["row"].values() if len(str(v).strip()) >= 3][:2]
-            ev, line = find_line(toe_evidence, terms, prefer=("toe",)) if terms else (None, None)
+            ev, line = find_line(operating_evidence, terms, prefer=("operating",)) if terms else (None, None)
             res = []
             for a in c.attributes:
                 if not ev:
@@ -120,10 +120,10 @@ def run(ctx: RunContext) -> dict:
             batch = items[i:i + BATCH]
             sample_txt = "\n".join(f"Sample #{it['index']}: {it['row']}" for it in batch)
             r = call_structured(
-                tool_name="record_toe_results", tool_description="Record TOE results per sample item",
-                schema=TEST_SCHEMA, system=prompts.TOE_TEST,
+                tool_name="record_operating_results", tool_description="Record OE results per sample item",
+                schema=TEST_SCHEMA, system=prompts.OE_TEST,
                 user=(f"{control_block(c)}\n\nTEST PROCEDURES:\n{proc_txt}\n\nSAMPLE ITEMS TO TEST:\n"
-                      f"{sample_txt}\n\n{evidence_block(toe_evidence)}"),
+                      f"{sample_txt}\n\n{evidence_block(operating_evidence)}"),
                 mock=lambda b=batch: mock_test(b))
             ctx.run.input_tokens += r.input_tokens
             ctx.run.output_tokens += r.output_tokens
@@ -162,10 +162,10 @@ def run(ctx: RunContext) -> dict:
                 elif r["result"] == "unable_to_assess":
                     unable += 1
         # replace previous agent-raised open exceptions for this control
-        db.query(Exception_).filter_by(control_id=c.id, source="toe_agent", status="open").delete()
+        db.query(Exception_).filter_by(control_id=c.id, source="operating_agent", status="open").delete()
         for t, r in fails:
             db.add(Exception_(control_id=c.id, sample_item=f"#{t['sample_index']} {t.get('label','')}"[:255],
-                              attribute_id=r["attribute_id"], description=r["note"], source="toe_agent"))
+                              attribute_id=r["attribute_id"], description=r["note"], source="operating_agent"))
         db.commit()
         failed_items = len({t["sample_index"] for t, _ in fails})
         if failed_items:

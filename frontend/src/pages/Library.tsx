@@ -23,8 +23,8 @@ export default function LibraryPage() {
                   <p className="muted"><b>Risk:</b> {c.risk}</p>
                   <div className="grid3">
                     <div><h4>Attributes</h4><ol>{c.attributes.map((a: any) => <li key={a.id}>{a.text}</li>)}</ol></div>
-                    <div><h4>D&I procedures</h4><ul>{c.dni_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
-                    <div><h4>TOE procedures</h4><ul>{c.toe_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
+                    <div><h4>Design procedures</h4><ul>{c.design_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
+                    <div><h4>Operating procedures</h4><ul>{c.operating_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
                   </div>
                   <p className="small"><b>Evidence to request:</b> {c.expected_evidence.join(" · ")}</p>
                 </div>

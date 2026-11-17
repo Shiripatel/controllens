@@ -5,7 +5,7 @@ import { can, useUser } from "../App";
 import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from "../components/ui";
 
 const DOMAINS = ["APD", "PC", "CO", "PD"];
-const STAGES = ["not_started", "dni_in_progress", "dni_prepared", "dni_reviewed", "toe_in_progress", "toe_prepared", "toe_reviewed"];
+const STAGES = ["not_started", "design_in_progress", "design_prepared", "design_reviewed", "operating_in_progress", "operating_prepared", "operating_reviewed"];
 
 export default function EngagementPage() {
   const { eid } = useParams();
@@ -39,7 +39,7 @@ export default function EngagementPage() {
 
       <div className="kpis">
         <Kpi n={s.controls} l="Controls in scope" />
-        <Kpi n={s.complete} l="Complete (TOE reviewed)" />
+        <Kpi n={s.complete} l="Complete (Operating reviewed)" />
         <Kpi n={s.open_notes} l="Open review notes" tone={s.open_notes ? "warn" : ""} />
         <Kpi n={s.open_exceptions} l="Open exceptions" tone={s.open_exceptions ? "bad" : ""} />
         <Kpi n={s.deficient} l="Deficient controls" tone={s.deficient ? "bad" : ""} />
@@ -91,7 +91,7 @@ function ControlsTab({ eng, controls, locked, onChange }: any) {
       </div>
       {rows.length === 0 ? <Empty title="No controls match">Add controls from the ITGC library.</Empty> : (
         <table className="table">
-          <thead><tr><th>Ref</th><th>Control</th><th>System</th><th>Frequency</th><th>Nature</th><th>Risk</th><th>D&I</th><th>TOE</th><th>Status</th></tr></thead>
+          <thead><tr><th>Ref</th><th>Control</th><th>System</th><th>Frequency</th><th>Nature</th><th>Risk</th><th>DE</th><th>OE</th><th>Status</th></tr></thead>
           <tbody>
             {rows.map((c: any) => (
               <tr key={c.id}>
@@ -100,8 +100,8 @@ function ControlsTab({ eng, controls, locked, onChange }: any) {
                 <td>{c.system?.name ?? "—"}</td>
                 <td>{c.frequency}</td><td>{c.nature}</td>
                 <td><Badge v={c.risk_rating === "High" ? "high" : c.risk_rating === "Low" ? "low" : "medium"} text={c.risk_rating} /></td>
-                <td>{c.dni_conclusion ? <Badge v={c.dni_conclusion.design} /> : <span className="muted">—</span>}</td>
-                <td>{c.toe_conclusion ? <Badge v={c.toe_conclusion.operating} /> : <span className="muted">—</span>}</td>
+                <td>{c.design_conclusion ? <Badge v={c.design_conclusion.design} /> : <span className="muted">—</span>}</td>
+                <td>{c.operating_conclusion ? <Badge v={c.operating_conclusion.operating} /> : <span className="muted">—</span>}</td>
                 <td><Badge v={c.status} /></td>
               </tr>
             ))}

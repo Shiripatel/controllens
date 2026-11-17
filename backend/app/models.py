@@ -15,8 +15,8 @@ ROLES = ("admin", "manager", "reviewer", "preparer", "viewer")
 # Control workflow states, in order
 STATUSES = [
     "not_started",
-    "dni_in_progress", "dni_prepared", "dni_reviewed",
-    "toe_in_progress", "toe_prepared", "toe_reviewed",
+    "design_in_progress", "design_prepared", "design_reviewed",
+    "operating_in_progress", "operating_prepared", "operating_reviewed",
 ]
 
 
@@ -87,15 +87,15 @@ class Control(Base):
     risk_rating: Mapped[str] = mapped_column(String(10), default="Moderate")  # Low | Moderate | High
     key_control: Mapped[bool] = mapped_column(Boolean, default=True)
     attributes: Mapped[list] = mapped_column(JSON, default=list)
-    dni_procedures: Mapped[list] = mapped_column(JSON, default=list)
-    toe_procedures: Mapped[list] = mapped_column(JSON, default=list)
+    design_procedures: Mapped[list] = mapped_column(JSON, default=list)
+    operating_procedures: Mapped[list] = mapped_column(JSON, default=list)
     expected_evidence: Mapped[list] = mapped_column(JSON, default=list)
     status: Mapped[str] = mapped_column(String(30), default="not_started")
     preparer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     reviewer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     # Human-confirmed conclusions (agents propose, humans decide)
-    dni_conclusion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    toe_conclusion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    design_conclusion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    operating_conclusion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     row_version: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
@@ -112,7 +112,7 @@ class Evidence(Base):
     size: Mapped[int] = mapped_column(Integer)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     storage_path: Mapped[str] = mapped_column(String(500))
-    purpose: Mapped[str] = mapped_column(String(20), default="general")  # design | toe | population | general
+    purpose: Mapped[str] = mapped_column(String(20), default="general")  # design | operating | population | general
     description: Mapped[str] = mapped_column(Text, default="")
     extracted_text: Mapped[str] = mapped_column(Text, default="")
     extraction_note: Mapped[str] = mapped_column(String(255), default="")
@@ -141,7 +141,7 @@ class AgentRun(Base):
     __tablename__ = "agent_runs"
     id: Mapped[int] = mapped_column(primary_key=True)
     control_id: Mapped[int] = mapped_column(ForeignKey("controls.id", ondelete="CASCADE"), index=True)
-    agent: Mapped[str] = mapped_column(String(20))  # dni | toe | reviewer
+    agent: Mapped[str] = mapped_column(String(20))  # design | operating | reviewer
     status: Mapped[str] = mapped_column(String(20), default="queued")  # queued | running | succeeded | failed
     provider: Mapped[str] = mapped_column(String(20), default="")
     model: Mapped[str] = mapped_column(String(80), default="")
@@ -163,7 +163,7 @@ class ReviewNote(Base):
     __tablename__ = "review_notes"
     id: Mapped[int] = mapped_column(primary_key=True)
     control_id: Mapped[int] = mapped_column(ForeignKey("controls.id", ondelete="CASCADE"), index=True)
-    stage: Mapped[str] = mapped_column(String(10))  # dni | toe
+    stage: Mapped[str] = mapped_column(String(10))  # design | operating
     severity: Mapped[str] = mapped_column(String(10), default="medium")  # low | medium | high
     text: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(20), default="human")  # human | reviewer_agent
@@ -183,7 +183,7 @@ class Exception_(Base):
     description: Mapped[str] = mapped_column(Text)
     severity: Mapped[str] = mapped_column(String(20), default="deficiency")  # deficiency | significant | material
     status: Mapped[str] = mapped_column(String(20), default="open")  # open | accepted | remediated
-    source: Mapped[str] = mapped_column(String(20), default="toe_agent")
+    source: Mapped[str] = mapped_column(String(20), default="operating_agent")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
@@ -191,7 +191,7 @@ class SignOff(Base):
     __tablename__ = "signoffs"
     id: Mapped[int] = mapped_column(primary_key=True)
     control_id: Mapped[int] = mapped_column(ForeignKey("controls.id", ondelete="CASCADE"), index=True)
-    stage: Mapped[str] = mapped_column(String(10))  # dni | toe
+    stage: Mapped[str] = mapped_column(String(10))  # design | operating
     kind: Mapped[str] = mapped_column(String(10))  # prepare | review
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     comment: Mapped[str] = mapped_column(Text, default="")

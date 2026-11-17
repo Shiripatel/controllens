@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import audit, serializers as S, workflow
-from ..agents import dni, toe, reviewer, prompts
+from ..agents import design, operating, reviewer, prompts
 from ..agents.common import input_hash
 from ..agents.llm import provider_name
 from ..agents.runner import execute
@@ -26,7 +26,7 @@ from ..security import current_user, check_engagement_access, ROLE_RANK
 router = APIRouter(tags=["controls"])
 settings = get_settings()
 
-AGENTS = {"dni": (dni.run, prompts.DNI_VERSION), "toe": (toe.run, prompts.TOE_VERSION),
+AGENTS = {"design": (design.run, prompts.DESIGN_VERSION), "operating": (operating.run, prompts.OE_VERSION),
           "reviewer": (reviewer.run, prompts.REVIEW_VERSION)}
 
 
@@ -69,14 +69,14 @@ class ControlPatch(BaseModel):
     key_control: bool | None = None
     system_id: int | None = None
     attributes: list[dict] | None = None
-    dni_procedures: list[str] | None = None
-    toe_procedures: list[str] | None = None
+    design_procedures: list[str] | None = None
+    operating_procedures: list[str] | None = None
     preparer_id: int | None = None
     reviewer_id: int | None = None
 
 
 DESIGN_FIELDS = {"title", "description", "objective", "risk", "frequency", "nature", "attributes",
-                 "dni_procedures", "system_id"}
+                 "design_procedures", "system_id"}
 
 
 @router.patch("/controls/{cid}")
@@ -102,7 +102,7 @@ def patch(cid: int, body: ControlPatch, db: Session = Depends(get_db), user: Use
         setattr(c, k, v)
     c.row_version += 1
     if DESIGN_FIELDS & set(ch):
-        workflow.invalidate(db, c, "dni", user, "Control definition changed")
+        workflow.invalidate(db, c, "design", user, "Control definition changed")
     _log(db, user, "control.updated", c, {"before": before, "after": ch})
     db.commit()
     return get_one(cid, db, user)
@@ -138,8 +138,8 @@ async def upload(cid: int, file: UploadFile = File(...), purpose: str = Form("ge
                  description: str = Form(""), db: Session = Depends(get_db),
                  user: User = Depends(current_user)):
     c = get_control(db, cid, user, write=True)
-    if purpose not in ("design", "toe", "population", "general"):
-        raise HTTPException(422, "purpose must be design, toe, population or general")
+    if purpose not in ("design", "operating", "population", "general"):
+        raise HTTPException(422, "purpose must be design, operating, population or general")
     fname = _safe_name(file.filename)
     ext = Path(fname).suffix.lower()
     if ext not in ALLOWED_EXT:
@@ -162,7 +162,7 @@ async def upload(cid: int, file: UploadFile = File(...), purpose: str = Form("ge
                  description=description, extracted_text=text, extraction_note=note, uploaded_by=user.id)
     db.add(e)
     db.flush()
-    workflow.invalidate(db, c, "dni" if purpose in ("design", "general") else "toe", user,
+    workflow.invalidate(db, c, "design" if purpose in ("design", "general") else "operating", user,
                         f"Evidence E{e.id} added")
     _log(db, user, "evidence.uploaded", c, {"file": fname, "sha256": sha, "size": len(raw),
                                             "purpose": purpose}, entity="evidence", entity_id=e.id)
@@ -204,7 +204,7 @@ def delete_evidence(evid: int, db: Session = Depends(get_db), user: User = Depen
         raise HTTPException(404, "Evidence not found")
     c = get_control(db, e.control_id, user, write=True)
     e.deleted = True  # record and file are kept for the audit trail
-    workflow.invalidate(db, c, "dni" if e.purpose in ("design", "general") else "toe", user,
+    workflow.invalidate(db, c, "design" if e.purpose in ("design", "general") else "operating", user,
                         f"Evidence E{e.id} removed")
     _log(db, user, "evidence.removed", c, {"file": e.filename, "sha256": e.sha256},
          entity="evidence", entity_id=e.id)
@@ -267,7 +267,7 @@ def make_sample(cid: int, body: SampleIn, db: Session = Depends(get_db), user: U
                rationale=rationale, items=items, created_by=user.id)
     db.add(s)
     db.flush()
-    workflow.invalidate(db, c, "toe", user, "New sample selected")
+    workflow.invalidate(db, c, "operating", user, "New sample selected")
     _log(db, user, "sample.created", c, {"population": len(rows), "size": len(items), "seed": seed,
                                          "method": method}, entity="sample", entity_id=s.id)
     db.commit()
@@ -284,7 +284,7 @@ def start_run(cid: int, body: RunIn, bg: BackgroundTasks, db: Session = Depends(
               user: User = Depends(current_user)):
     c = get_control(db, cid, user, write=True)
     if body.agent not in AGENTS:
-        raise HTTPException(422, "agent must be dni, toe or reviewer")
+        raise HTTPException(422, "agent must be design, operating or reviewer")
     busy = db.query(AgentRun).filter(AgentRun.control_id == cid, AgentRun.agent == body.agent,
                                      AgentRun.status.in_(("queued", "running"))).first()
     if busy:
@@ -295,7 +295,7 @@ def start_run(cid: int, body: RunIn, bg: BackgroundTasks, db: Session = Depends(
     run = AgentRun(control_id=cid, agent=body.agent, prompt_version=version, input_hash=h,
                    created_by=user.id, provider=provider_name())
     db.add(run)
-    if body.agent in ("dni", "toe"):
+    if body.agent in ("design", "operating"):
         workflow.mark_in_progress(db, c, body.agent, user)
     db.flush()
     _log(db, user, f"agent.{body.agent}.started", c, {"run": run.id, "prompt_version": version},
@@ -337,15 +337,15 @@ def confirm_conclusion(cid: int, body: ConclusionIn, db: Session = Depends(get_d
                        user: User = Depends(current_user)):
     """The human decision. If it differs from what the agent proposed, a reason is required."""
     c = get_control(db, cid, user, write=True)
-    if body.stage not in ("dni", "toe"):
-        raise HTTPException(422, "stage must be dni or toe")
+    if body.stage not in ("design", "operating"):
+        raise HTTPException(422, "stage must be design or operating")
     proposed = None
     if body.run_id:
         r = db.get(AgentRun, body.run_id)
         if not r or r.control_id != cid or r.agent != body.stage or r.status != "succeeded":
             raise HTTPException(422, "Run does not match this control and stage")
         proposed = (r.result or {}).get("proposed_conclusion")
-    keys = ("design", "implementation") if body.stage == "dni" else ("operating",)
+    keys = ("design", "implementation") if body.stage == "design" else ("operating",)
     for k in keys:
         if k not in body.conclusion:
             raise HTTPException(422, f"conclusion.{k} is required")
@@ -354,10 +354,10 @@ def confirm_conclusion(cid: int, body: ConclusionIn, db: Session = Depends(get_d
         raise HTTPException(422, "You changed the agent's proposed conclusion; explain why (15+ characters)")
     value = {**{k: body.conclusion[k] for k in keys}, "rationale": body.rationale, "run_id": body.run_id,
              "overrode_agent": overridden, "confirmed_by": user.email}
-    if body.stage == "dni":
-        c.dni_conclusion = value
+    if body.stage == "design":
+        c.design_conclusion = value
     else:
-        c.toe_conclusion = value
+        c.operating_conclusion = value
     c.row_version += 1
     workflow.mark_in_progress(db, c, body.stage, user)
     workflow.invalidate(db, c, body.stage, user, "Conclusion changed")
@@ -376,8 +376,8 @@ class SignIn(BaseModel):
 @router.post("/controls/{cid}/signoffs", status_code=201)
 def sign(cid: int, body: SignIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     c = get_control(db, cid, user, write=True)
-    if body.stage not in ("dni", "toe"):
-        raise HTTPException(422, "stage must be dni or toe")
+    if body.stage not in ("design", "operating"):
+        raise HTTPException(422, "stage must be design or operating")
     workflow.sign(db, c, body.stage, body.kind, user, body.comment)
     db.commit()
     return get_one(cid, db, user)
@@ -399,7 +399,7 @@ class NoteIn(BaseModel):
 @router.post("/controls/{cid}/notes", status_code=201)
 def add_note(cid: int, body: NoteIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     c = get_control(db, cid, user, write=True)
-    if body.stage not in ("dni", "toe") or body.severity not in ("low", "medium", "high"):
+    if body.stage not in ("design", "operating") or body.severity not in ("low", "medium", "high"):
         raise HTTPException(422, "Invalid stage or severity")
     n = ReviewNote(control_id=cid, stage=body.stage, severity=body.severity, text=body.text.strip(),
                    created_by=user.id)
@@ -463,7 +463,7 @@ def patch_exception(xid: int, body: ExceptionPatch, db: Session = Depends(get_db
         raise HTTPException(422, "Invalid severity")
     for k, v in ch.items():
         setattr(x, k, v)
-    workflow.invalidate(db, c, "toe", user, f"Exception {x.id} changed")
+    workflow.invalidate(db, c, "operating", user, f"Exception {x.id} changed")
     _log(db, user, "exception.updated", c, ch, entity="exception", entity_id=x.id)
     db.commit()
     return S.exception(x)

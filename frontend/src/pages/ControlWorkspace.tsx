@@ -6,8 +6,8 @@ import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from
 import { Activity } from "./Engagement";
 
 const FLOW = [
-  ["not_started", "Not started"], ["dni_in_progress", "D&I"], ["dni_prepared", "D&I prepared"], ["dni_reviewed", "D&I reviewed"],
-  ["toe_in_progress", "TOE"], ["toe_prepared", "TOE prepared"], ["toe_reviewed", "Complete"],
+  ["not_started", "Not started"], ["design_in_progress", "Design"], ["design_prepared", "Design prepared"], ["design_reviewed", "Design reviewed"],
+  ["operating_in_progress", "Operating"], ["operating_prepared", "Operating prepared"], ["operating_reviewed", "Complete"],
 ];
 
 export default function ControlWorkspace() {
@@ -15,7 +15,7 @@ export default function ControlWorkspace() {
   const [c, reload, err] = useLoad<any>(() => api.get(`/controls/${cid}`), [cid]);
   const [evidence, reloadEv] = useLoad<any[]>(() => api.get(`/controls/${cid}/evidence`), [cid]);
   const [notes, reloadNotes] = useLoad<any[]>(() => api.get(`/controls/${cid}/notes`), [cid]);
-  const [tab, setTab] = useState("dni");
+  const [tab, setTab] = useState("design");
   if (err) return <ErrorBox msg={err} />;
   if (!c || !evidence || !notes) return <Loading />;
   const idx = FLOW.findIndex(([k]) => k === c.status);
@@ -40,17 +40,17 @@ export default function ControlWorkspace() {
       <Tabs active={tab} onChange={setTab} tabs={[
         { key: "overview", label: "Control" },
         { key: "evidence", label: "Evidence", count: evidence.length },
-        { key: "dni", label: "Design & Implementation" },
+        { key: "design", label: "Design Effectiveness" },
         { key: "sampling", label: "Sampling" },
-        { key: "toe", label: "Operating Effectiveness" },
+        { key: "operating", label: "Operating Effectiveness" },
         { key: "review", label: "Review notes", count: openNotes },
         { key: "activity", label: "Activity" },
       ]} />
       {tab === "overview" && <Overview {...props} />}
       {tab === "evidence" && <EvidenceTab {...props} />}
-      {tab === "dni" && <StageTab stage="dni" {...props} />}
+      {tab === "design" && <StageTab stage="design" {...props} />}
       {tab === "sampling" && <SamplingTab {...props} />}
-      {tab === "toe" && <StageTab stage="toe" {...props} />}
+      {tab === "operating" && <StageTab stage="operating" {...props} />}
       {tab === "review" && <ReviewTab {...props} />}
       {tab === "activity" && <Activity path={`/controls/${cid}/activity`} />}
     </div>
@@ -69,7 +69,7 @@ function Overview({ c, locked, refresh }: any) {
     const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
     return (
       <div className="card form">
-        <div className="banner info">Changing the control definition revokes D&I and TOE sign-offs.</div>
+        <div className="banner info">Changing the control definition revokes design and operating sign-offs.</div>
         <label>Title<input value={f.title} onChange={set("title")} /></label>
         <label>Description<textarea rows={3} value={f.description} onChange={set("description")} /></label>
         <div className="grid2">
@@ -116,8 +116,8 @@ function Overview({ c, locked, refresh }: any) {
         <h4>Attributes</h4>
         <ol className="attrs">{c.attributes.map((a: any) => <li key={a.id}><span className="mono">{a.id}</span> {a.text}</li>)}</ol>
         <div className="grid2">
-          <div><h4>D&I procedures</h4><ul>{c.dni_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
-          <div><h4>TOE procedures</h4><ul>{c.toe_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
+          <div><h4>Design procedures</h4><ul>{c.design_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
+          <div><h4>Operating procedures</h4><ul>{c.operating_procedures.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>
         </div>
       </div>
       <div className="card">
@@ -159,7 +159,7 @@ function EvidenceTab({ c, evidence, locked, refresh }: any) {
           <select value={purpose} onChange={(e) => setPurpose(e.target.value)}>
             <option value="design">Design / walkthrough</option>
             <option value="population">Population (for sampling)</option>
-            <option value="toe">TOE sample evidence</option>
+            <option value="operating">Operating test evidence</option>
             <option value="general">General</option>
           </select>
           <input placeholder="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} />
@@ -278,19 +278,19 @@ function Citations({ list }: { list: any[] }) {
   ))}</div>;
 }
 
-// ---------------------------------------------------------- D&I / TOE stage
+// ---------------------------------------------------------- DE / OE stage
 function StageTab({ stage, c, locked, refresh }: any) {
   const state = useRuns(c.id, stage);
-  const [xs, reloadX] = useLoad<any[]>(() => stage === "toe" ? api.get(`/controls/${c.id}/exceptions`) : Promise.resolve([]), [c.id, stage]);
+  const [xs, reloadX] = useLoad<any[]>(() => stage === "operating" ? api.get(`/controls/${c.id}/exceptions`) : Promise.resolve([]), [c.id, stage]);
   const r = state.run?.status === "succeeded" ? state.run.result : null;
   return (
     <div className="stack">
       <AgentBar c={c} agent={stage} locked={locked} state={state} onDone={() => { refresh(); reloadX(); }}
-        title={stage === "dni" ? "Design & Implementation agent" : "Operating Effectiveness agent"} />
-      {stage === "toe" && c.test_type && <div className="banner info"><b>Test approach:</b> {c.test_type.reason}</div>}
-      {r && stage === "dni" && <DniResult r={r} c={c} />}
-      {r && stage === "toe" && <ToeResult r={r} c={c} />}
-      {stage === "toe" && xs && xs.length > 0 && <Exceptions xs={xs} locked={locked} onChange={() => { reloadX(); refresh(); }} />}
+        title={stage === "design" ? "Design Effectiveness agent" : "Operating Effectiveness agent"} />
+      {stage === "operating" && c.test_type && <div className="banner info"><b>Test approach:</b> {c.test_type.reason}</div>}
+      {r && stage === "design" && <DesignResult r={r} c={c} />}
+      {r && stage === "operating" && <OperatingResult r={r} c={c} />}
+      {stage === "operating" && xs && xs.length > 0 && <Exceptions xs={xs} locked={locked} onChange={() => { reloadX(); refresh(); }} />}
       <div className="grid-side">
         <ConclusionForm stage={stage} c={c} run={state.run} locked={locked} onDone={refresh} />
         <SignOffs stage={stage} c={c} locked={locked} onDone={refresh} />
@@ -301,7 +301,7 @@ function StageTab({ stage, c, locked, refresh }: any) {
   );
 }
 
-function DniResult({ r, c }: any) {
+function DesignResult({ r, c }: any) {
   const ev = r.evaluation;
   const text = (id: string) => c.attributes.find((a: any) => a.id === id)?.text ?? "";
   const plan = Object.fromEntries((r.plan.attributes || []).map((p: any) => [p.attribute_id, p]));
@@ -334,7 +334,7 @@ function DniResult({ r, c }: any) {
   );
 }
 
-function ToeResult({ r, c }: any) {
+function OperatingResult({ r, c }: any) {
   const [cell, setCell] = useState<any>(null);
   const p = r.proposed_conclusion;
   return (
@@ -390,9 +390,9 @@ function Exceptions({ xs, locked, onChange }: any) {
 }
 
 function ConclusionForm({ stage, c, run, locked, onDone }: any) {
-  const current = stage === "dni" ? c.dni_conclusion : c.toe_conclusion;
+  const current = stage === "design" ? c.design_conclusion : c.operating_conclusion;
   const proposed = run?.status === "succeeded" ? run.result?.proposed_conclusion : null;
-  const keys = stage === "dni" ? ["design", "implementation"] : ["operating"];
+  const keys = stage === "design" ? ["design", "implementation"] : ["operating"];
   const OPTS: Record<string, string[]> = {
     design: ["effective", "not_effective", "insufficient_evidence"],
     implementation: ["implemented", "not_implemented", "insufficient_evidence"],
@@ -521,7 +521,7 @@ function SamplingTab({ c, evidence, locked, refresh }: any) {
 function ReviewTab({ c, notes, locked, refresh }: any) {
   const user = useUser();
   const state = useRuns(c.id, "reviewer");
-  const [f, setF] = useState({ stage: "dni", severity: "medium", text: "" });
+  const [f, setF] = useState({ stage: "design", severity: "medium", text: "" });
   const [reply, setReply] = useState<Record<number, string>>({});
   const { busy, run } = useAction();
   const r = state.run?.status === "succeeded" ? state.run.result : null;
@@ -531,7 +531,7 @@ function ReviewTab({ c, notes, locked, refresh }: any) {
       {r?.overall && <div className="banner info"><b>Reviewer agent summary:</b> {r.overall}</div>}
       {!locked && (
         <form className="card upload" onSubmit={async (e) => { e.preventDefault(); if (await run(() => api.post(`/controls/${c.id}/notes`, f), "Note added")) { setF({ ...f, text: "" }); refresh(); } }}>
-          <select value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })}><option value="dni">D&I</option><option value="toe">TOE</option></select>
+          <select value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })}><option value="design">DE</option><option value="operating">OE</option></select>
           <select value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
           <input className="grow" placeholder="Write a review note…" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} required />
           <button className="primary" disabled={busy}>Add note</button>
@@ -540,7 +540,7 @@ function ReviewTab({ c, notes, locked, refresh }: any) {
       {notes.length === 0 ? <Empty title="No review notes" /> : notes.map((n: any) => (
         <div key={n.id} className={`card note ${n.status}`}>
           <div className="row between">
-            <div className="row gap"><Badge v={n.severity} /><Badge v="low" text={n.stage === "dni" ? "D&I" : "TOE"} />{n.source === "reviewer_agent" && <span className="small muted">✦ Reviewer agent</span>}</div>
+            <div className="row gap"><Badge v={n.severity} /><Badge v="low" text={n.stage === "design" ? "DE" : "OE"} />{n.source === "reviewer_agent" && <span className="small muted">✦ Reviewer agent</span>}</div>
             <div className="row gap"><Badge v={n.status} /><span className="muted small">{fmtDate(n.created_at)}</span></div>
           </div>
           <p>{n.text}</p>
