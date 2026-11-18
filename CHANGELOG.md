@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0] - 2026-11-17
+
+### Added
+- "My work" home page: controls to prepare, controls to review, open review notes and open requests
+- Next-step bar on each control that says what to do next, with a button to do it
+- Evidence opens in a side panel beside the results when you click a quote
+- Results show one line per attribute; open a row for the full reasoning and quotes
+- Live step progress in the agents panel while an agent runs
+
+### Changed
+- Cleaner look: smaller text, more space, lighter headings, softer green, flat tables, dot-and-text status
+
 ## [1.2.0] - 2026-11-17
 
 ### Changed

@@ -1,5 +1,5 @@
 // Evidence tab (with intake check), citation viewer, and the evidence request list.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, fmtDate, fmtSize } from "../api";
 import { Badge, Empty, Loading, Modal, useAction, useLoad } from "../components/ui";
 
@@ -7,8 +7,11 @@ const isImage = (name: string) => /\.(png|jpe?g)$/i.test(name);
 const isPdf = (name: string) => /\.pdf$/i.test(name);
 
 // ------------------------------------------------------------ evidence viewer
+/** When a page provides this, quotes open in a side panel instead of a pop-up. */
+export const EvidenceDock = createContext<((v: { id: number; excerpt?: string }) => void) | null>(null);
+
 /** Shows one evidence file. If an excerpt is given, it is highlighted in the text. */
-export function EvidenceViewer({ id, excerpt, onClose }: { id: number; excerpt?: string; onClose: () => void }) {
+export function EvidenceBody({ id, excerpt }: { id: number; excerpt?: string }) {
   const [doc] = useLoad<any>(() => api.get(`/evidence/${id}/text`), [id]);
   const [url, setUrl] = useState<string | null>(null);
   const visual = doc && (isImage(doc.filename) || (isPdf(doc.filename) && !doc.text?.trim()));
@@ -32,29 +35,30 @@ export function EvidenceViewer({ id, excerpt, onClose }: { id: number; excerpt?:
 
   useEffect(() => { document.getElementById("hit")?.scrollIntoView({ block: "center" }); }, [body]);
   const found = !!excerpt && !visual && !!doc && typeof body !== "string";
-
+  if (!doc) return <Loading />;
   return (
-    <Modal title={doc ? `E${id} · ${doc.filename}` : `E${id}`} onClose={onClose} wide>
-      {!doc ? <Loading /> : (
-        <>
-          {excerpt && (
-            <div className={`banner ${visual ? "info" : found ? "good" : "warn"}`}>
-              <b>Agent's quote:</b> “{excerpt}”
-              <div className="small">{visual ? "This is an image or scan. Check the quote by eye." : found ? "Found in the file and highlighted below." : "Not found word for word in this file."}</div>
-            </div>
-          )}
-          <div className="muted small">{doc.note}</div>
-          {visual
-            ? (url ? (isImage(doc.filename) ? <img className="evimg" src={url} alt={doc.filename} /> : <iframe className="evpdf" src={url} title={doc.filename} />) : <Loading />)
-            : <pre className="doc">{body}</pre>}
-        </>
+    <>
+      <div><b>{doc.filename}</b> <span className="muted small">{doc.note}</span></div>
+      {excerpt && (
+        <div className={`banner ${visual ? "info" : found ? "good" : "warn"}`}>
+          <b>Agent's quote:</b> “{excerpt}”
+          <div className="small">{visual ? "This is an image or scan. Check the quote by eye." : found ? "Found in the file and highlighted below." : "Not found word for word in this file."}</div>
+        </div>
       )}
-    </Modal>
+      {visual
+        ? (url ? (isImage(doc.filename) ? <img className="evimg" src={url} alt={doc.filename} /> : <iframe className="evpdf" src={url} title={doc.filename} />) : <Loading />)
+        : <pre className="doc">{body}</pre>}
+    </>
   );
+}
+
+export function EvidenceViewer({ id, excerpt, onClose }: { id: number; excerpt?: string; onClose: () => void }) {
+  return <Modal title={`Evidence E${id}`} onClose={onClose} wide><EvidenceBody id={id} excerpt={excerpt} /></Modal>;
 }
 
 /** Evidence quotes behind an agent's claim. Click one to open the file at that quote. */
 export function Citations({ list }: { list: any[] }) {
+  const dock = useContext(EvidenceDock);
   const [open, setOpen] = useState<any>(null);
   if (!list?.length) return <span className="muted small">No evidence cited</span>;
   return (
@@ -62,7 +66,7 @@ export function Citations({ list }: { list: any[] }) {
       {list.map((x, i) => {
         const id = Number(String(x.evidence_id).replace(/\D/g, ""));
         return (
-          <button key={i} className="cite" title="Open the evidence at this quote" onClick={() => id && setOpen({ id, excerpt: x.excerpt })}>
+          <button key={i} className="cite" title="Open the evidence at this quote" onClick={(e) => { e.stopPropagation(); if (id) (dock ?? setOpen)({ id, excerpt: x.excerpt }); }}>
             <span className={`ver ${x.verified === true ? "ok" : x.verified === false ? "no" : "na"}`}>{x.verified === true ? "✓" : x.verified === false ? "✗" : "?"}</span>
             <span className="mono">{x.evidence_id}</span>{x.locator && <span className="muted small"> {x.locator}</span>} <q>{x.excerpt}</q>
             {x.visual && <span className="muted small"> · image, check by eye</span>}

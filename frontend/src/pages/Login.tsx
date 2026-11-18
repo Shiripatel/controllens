@@ -24,7 +24,7 @@ export default function Login() {
       const r = await api.post("/auth/login", { email, password });
       auth.set(r.token);
       setUser(r.user);
-      nav("/engagements");
+      nav("/home");
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
 

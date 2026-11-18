@@ -4,6 +4,7 @@ import { api, auth, type User } from "./api";
 import { ToastProvider, Loading } from "./components/ui";
 import Login from "./pages/Login";
 import Engagements from "./pages/Engagements";
+import Home from "./pages/Home";
 import EngagementPage from "./pages/Engagement";
 import ControlWorkspace from "./pages/ControlWorkspace";
 import AuditLogPage from "./pages/AuditLog";
@@ -30,6 +31,7 @@ function Shell({ children }: { children: ReactNode }) {
       <aside className="side">
         <div className="brand"><span className="logo">◎</span><span className="lbl"> ControlLens</span></div>
         <nav>
+          <NavLink to="/home" title="My work"><span className="ico">⌂</span><span className="lbl">My work</span></NavLink>
           <NavLink to="/engagements" title="Engagements"><span className="ico">▦</span><span className="lbl">Engagements</span></NavLink>
           <NavLink to="/library" title="Control library"><span className="ico">☰</span><span className="lbl">Control library</span></NavLink>
           {can(user, "manager") && <NavLink to="/audit" title="Audit trail"><span className="ico">⛨</span><span className="lbl">Audit trail</span></NavLink>}
@@ -67,14 +69,15 @@ export default function App() {
       <ToastProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={user ? <Navigate to="/engagements" /> : <Login />} />
+            <Route path="/login" element={user ? <Navigate to="/home" /> : <Login />} />
+            <Route path="/home" element={S(<Home />)} />
             <Route path="/engagements" element={S(<Engagements />)} />
             <Route path="/engagements/:eid" element={S(<EngagementPage />)} />
             <Route path="/controls/:cid" element={S(<ControlWorkspace />)} />
             <Route path="/library" element={S(<LibraryPage />)} />
             <Route path="/audit" element={S(<AuditLogPage />)} />
             <Route path="/users" element={S(<UsersPage />)} />
-            <Route path="*" element={<Navigate to={user ? "/engagements" : "/login"} />} />
+            <Route path="*" element={<Navigate to={user ? "/home" : "/login"} />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

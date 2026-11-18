@@ -82,6 +82,8 @@ The agents follow the two standard SOX / PCAOB AS 2201 testing stages, design ef
 
 ### Audit workflow
 
+- **My work**: a home page listing what needs you today, to prepare, to review, notes and requests
+- **Next step**: each control shows the one thing to do next, with a button
 - **Risk & control matrix (RCM)**: every risk and control in one grid, grouped by domain. Click a row to open its testing workspace.
 - **Control testing workspace**: control details on the left (edit in place), the work area in the middle, and the agents with their run status on the right. Step to the previous or next control without going back.
 

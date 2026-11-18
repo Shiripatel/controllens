@@ -4,7 +4,7 @@ import { api, fmtDate, label } from "../api";
 import { can, useUser } from "../App";
 import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from "../components/ui";
 import { Activity } from "./Engagement";
-import { Citations, EvidenceTab, RequestsTab } from "./Extras";
+import { Citations, EvidenceBody, EvidenceDock, EvidenceTab, RequestsTab } from "./Extras";
 
 const FLOW = [
   ["not_started", "Not started"], ["design_in_progress", "Design"], ["design_prepared", "Design prepared"], ["design_reviewed", "Design reviewed"],
@@ -30,7 +30,9 @@ export default function ControlWorkspace() {
   const [agent, setAgent] = useState<string | null>(null);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
-  useEffect(() => { setTab("agents"); setAgent(null); }, [cid]);
+  const [viewing, setViewing] = useState<{ id: number; excerpt?: string } | null>(null);
+  const user = useUser();
+  useEffect(() => { setTab("agents"); setAgent(null); setViewing(null); }, [cid]);
   if (err) return <ErrorBox msg={err} />;
   if (!c || !evidence || !notes || String(c.id) !== cid) return <Loading />;
   const idx = FLOW.findIndex(([k]) => k === c.status);
@@ -40,7 +42,12 @@ export default function ControlWorkspace() {
   const bumpRail = () => setRailTick((t) => t + 1);
   const openAgent = (k: string) => { if (k === "reviewer") { setTab("review"); } else { setTab("agents"); setAgent(k); } };
   const props = { c, evidence, notes, locked, refresh, onStarted: bumpRail };
+  const startAgent = async (k: string) => {
+    try { await api.post(`/controls/${c.id}/runs`, { agent: k }); openAgent(k); setCenterKey((x) => x + 1); bumpRail(); } catch { openAgent(k); }
+  };
+  const showLeft = leftOpen && !viewing;
   return (
+    <EvidenceDock.Provider value={setViewing}>
     <div className="page ws-page">
       <div className="ws-head">
         <div>
@@ -53,12 +60,14 @@ export default function ControlWorkspace() {
         </div>
       </div>
       {locked && <div className="banner warn">Engagement is {c.engagement.status}; this control is read-only.</div>}
+      <NextStep c={c} evidence={evidence} notes={notes} user={user} locked={locked} tick={railTick}
+        goTab={(t: string) => { setTab(t); setAgent(null); }} openAgent={openAgent} startAgent={startAgent} />
       <div className="stepper">
         {FLOW.map(([k, l], i) => <div key={k} className={`st ${i < idx ? "done" : i === idx ? "now" : ""}`}><span className="dot" />{l}</div>)}
       </div>
 
-      <div className={`ws ${leftOpen ? "" : "no-left"} ${rightOpen ? "" : "no-right"}`}>
-        {leftOpen
+      <div className={`ws ${showLeft ? "" : "no-left"} ${viewing ? "viewing" : rightOpen ? "" : "no-right"}`}>
+        {showLeft
           ? <DetailsPane c={c} locked={locked} refresh={refresh} onCollapse={() => setLeftOpen(false)} />
           : <button className="pane-tab" onClick={() => setLeftOpen(true)} title="Show control details">▸<span>Control details</span></button>}
 
@@ -85,11 +94,52 @@ export default function ControlWorkspace() {
           {tab === "activity" && <Activity path={`/controls/${cid}/activity`} />}
         </section>
 
-        {rightOpen
+        {viewing ? (
+          <aside className="pane evpane">
+            <div className="pane-head"><b>Evidence E{viewing.id}</b><button className="icon" onClick={() => setViewing(null)} title="Close evidence">×</button></div>
+            <div className="pane-body"><EvidenceBody key={`${viewing.id}-${viewing.excerpt}`} id={viewing.id} excerpt={viewing.excerpt} /></div>
+          </aside>
+        ) : rightOpen
           ? <AgentRail c={c} locked={locked} tick={railTick} current={tab === "review" ? "reviewer" : agent} onOpen={openAgent}
               onStarted={(k: string) => { openAgent(k); setCenterKey((x) => x + 1); bumpRail(); }} onFinished={refresh} onCollapse={() => setRightOpen(false)} />
           : <button className="pane-tab right" onClick={() => setRightOpen(true)} title="Show agents">◂<span>Agents</span></button>}
       </div>
+    </div>
+    </EvidenceDock.Provider>
+  );
+}
+
+// ----------------------------------------------------------------- next step
+/** One line that says what to do next on this control, with a button to do it. */
+function NextStep({ c, evidence, notes, user, locked, tick, goTab, openAgent, startAgent }: any) {
+  const [runs] = useLoad<any[]>(() => api.get(`/controls/${c.id}/runs`), [c.id, tick]);
+  const [samp] = useLoad<any>(() => api.get(`/controls/${c.id}/sampling`), [c.id, tick]);
+  if (!runs || !samp || locked) return null;
+  const ok = (a: string) => runs.some((r) => r.agent === a && r.status === "succeeded");
+  const busy = runs.find((r) => ["queued", "running"].includes(r.status));
+  const openN = (st: string) => notes.filter((n: any) => n.stage === st && n.status !== "closed").length;
+  const iPrepared = (st: string) => c.signoffs.some((s: any) => s.stage === st && s.kind === "prepare" && !s.revoked && s.user.id === user.id);
+  const stage = c.status.startsWith("operating") || c.status === "design_reviewed" ? "operating" : "design";
+  const name = stage === "design" ? "Design Effectiveness" : "Operating Effectiveness";
+  let text = "", btn = "", act: (() => void) | null = null, done = false;
+  if (busy) { text = "An agent is running. Results will show when it finishes."; }
+  else if (c.status === "operating_reviewed") { text = "This control is complete."; btn = "Export work paper"; act = () => api.download(`/controls/${c.id}/workpaper.html`, `${c.ref}_workpaper.html`); done = true; }
+  else if (c.status.endsWith("_prepared")) {
+    const n = openN(stage);
+    if (n) { text = `${n} review note(s) need to be answered and closed before review sign-off.`; btn = "Open review notes"; act = () => goTab("review"); }
+    else if (can(user, "reviewer") && !iPrepared(stage)) { text = `Review the ${stage} work and sign off as reviewer.`; btn = "Open to review"; act = () => openAgent(stage); }
+    else { text = "Waiting for the reviewer to sign off. You can run the Reviewer agent to pre-check the work."; btn = "Open review notes"; act = () => goTab("review"); }
+  }
+  else if (stage === "design" && !evidence.some((e: any) => e.purpose !== "population")) { text = "Upload the design evidence: policy, procedure or walkthrough."; btn = "Go to evidence"; act = () => goTab("evidence"); }
+  else if (stage === "operating" && samp.test_type.test_type === "sampling" && !samp.sample) { text = "Select the sample to test."; btn = "Go to sampling"; act = () => goTab("sampling"); }
+  else if (!ok(stage)) { text = `Run the ${name} agent.`; btn = "Run agent"; act = () => startAgent(stage); }
+  else if (!(stage === "design" ? c.design_conclusion : c.operating_conclusion)) { text = "Check the agent's results, then confirm your conclusion."; btn = "Open results"; act = () => openAgent(stage); }
+  else { text = `Sign off the ${stage} work as preparer.`; btn = "Open to sign off"; act = () => openAgent(stage); }
+  return (
+    <div className={`nextstep ${done ? "done" : ""}`}>
+      <span className="nextstep-l">{done ? "Done" : "Next step"}</span>
+      <span className="nextstep-t">{text}</span>
+      {btn && <button className={done ? "ghost sm" : "primary sm"} onClick={() => act?.()}>{btn}</button>}
     </div>
   );
 }
@@ -229,6 +279,18 @@ function Launcher({ c, evidence, onOpen }: any) {
   );
 }
 
+function LiveSteps({ id }: { id: number }) {
+  const [run, setRun] = useState<any>(null);
+  useEffect(() => {
+    let live = true; let t: any;
+    const load = async () => { const x = await api.get(`/runs/${id}`).catch(() => null); if (!live) return; if (x) setRun(x); t = setTimeout(load, 1200); };
+    load();
+    return () => { live = false; clearTimeout(t); };
+  }, [id]);
+  if (!run?.steps?.length) return <div className="muted small">Starting…</div>;
+  return <ol className="live">{run.steps.map((s: any) => <li key={s.key} className={s.status}>{s.status === "done" ? "✓" : s.status === "failed" ? "✗" : "…"} {s.title}</li>)}</ol>;
+}
+
 // -------------------------------------------------------- right: agent runs
 function AgentRail({ c, locked, tick, current, onOpen, onStarted, onFinished, onCollapse }: any) {
   const [runs, reload] = useLoad<any[]>(() => api.get(`/controls/${c.id}/runs`), [c.id, tick]);
@@ -259,6 +321,7 @@ function AgentRail({ c, locked, tick, current, onOpen, onStarted, onFinished, on
                 {!last ? <><span className="dot0" /> Not run<div className="muted small">Needs: {a.needs}</div></> : (
                   <>
                     <Badge v={last.status} text={running ? "Running" : last.status === "succeeded" ? "Finished" : "Failed"} />
+                    {running && <LiveSteps id={last.id} />}
                     <div className="muted small">Run #{last.id} · {fmtDate(last.created_at)}</div>
                     <div className="muted small mono">{last.model || last.provider}</div>
                     {last.flags > 0 && <div className="warn-text small">{last.flags} guardrail flag(s)</div>}
@@ -377,26 +440,38 @@ function StageTab({ stage, c, locked, refresh, onStarted }: any) {
 
 function DesignResult({ r, c }: any) {
   const ev = r.evaluation;
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   const text = (id: string) => c.attributes.find((a: any) => a.id === id)?.text ?? "";
-  const plan = Object.fromEntries((r.plan.attributes || []).map((p: any) => [p.attribute_id, p]));
+  const all = ev.attribute_results.every((a: any) => open[a.attribute_id]);
   return (
     <div className="card">
       <div className="row between">
-        <h4>Agent results by attribute</h4>
-        <div className="row gap"><span className="muted small">Proposed:</span><Badge v={r.proposed_conclusion.design} text={`Design: ${label(r.proposed_conclusion.design)}`} /><Badge v={r.proposed_conclusion.implementation} text={label(r.proposed_conclusion.implementation)} /></div>
+        <h4>Results by attribute</h4>
+        <div className="row gap"><span className="muted small">Agent proposes</span><Badge v={r.proposed_conclusion.design} text={`Design: ${label(r.proposed_conclusion.design)}`} /><Badge v={r.proposed_conclusion.implementation} text={label(r.proposed_conclusion.implementation)} /></div>
       </div>
-      <p>{ev.summary}</p>
-      <table className="table attrs-table">
-        <thead><tr><th>Attribute</th><th>Design</th><th>Implemented</th><th>Reasoning and evidence</th></tr></thead>
-        <tbody>{ev.attribute_results.map((a: any) => (
-          <tr key={a.attribute_id}>
-            <td><span className="mono">{a.attribute_id}</span> {text(a.attribute_id)}{plan[a.attribute_id] && <div className="muted small">{plan[a.attribute_id].addresses_risk}</div>}</td>
-            <td><Badge v={a.design_assessment} />{a.downgraded && <div className="warn-text small">downgraded by guardrail</div>}</td>
-            <td><Badge v={a.implemented} /></td>
-            <td><div>{a.reasoning}</div><Citations list={a.citations} /></td>
-          </tr>
-        ))}</tbody>
-      </table>
+      <p className="muted">{ev.summary}</p>
+      <div className="res-head"><span>Attribute</span><span>Design</span><span>In place</span><span>
+        <button className="linkbtn" onClick={() => setOpen(all ? {} : Object.fromEntries(ev.attribute_results.map((a: any) => [a.attribute_id, true])))}>{all ? "Collapse all" : "Expand all"}</button></span></div>
+      {ev.attribute_results.map((a: any) => {
+        const on = !!open[a.attribute_id];
+        return (
+          <div key={a.attribute_id} className={`res ${on ? "open" : ""}`}>
+            <button className="res-row" aria-expanded={on} onClick={() => setOpen({ ...open, [a.attribute_id]: !on })}>
+              <span><b>{a.attribute_id}</b> {text(a.attribute_id)}{!on && <span className="res-why">{a.reasoning}</span>}</span>
+              <span><Badge v={a.design_assessment} /></span>
+              <span><Badge v={a.implemented} /></span>
+              <span className="muted small">{a.citations?.length || 0} quote(s) <span className="chev">{on ? "▴" : "▾"}</span></span>
+            </button>
+            {on && (
+              <div className="res-detail">
+                {a.downgraded && <div className="warn-text small">Lowered by the citation check: the quote could not be verified.</div>}
+                <div>{a.reasoning}</div>
+                <Citations list={a.citations} />
+              </div>
+            )}
+          </div>
+        );
+      })}
       {(ev.gaps?.length > 0 || ev.evidence_requests?.length > 0) && (
         <div className="grid2">
           {ev.gaps?.length > 0 && <div><h4>Gaps</h4><ul>{ev.gaps.map((g: string, i: number) => <li key={i}>{g}</li>)}</ul></div>}

@@ -283,3 +283,42 @@ def export_csv(eid: int, db: Session = Depends(get_db), user: User = Depends(cur
     fname = f"{e.client}_{e.name}_controls.csv".replace(" ", "_")
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/me/work")
+def my_work(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """What needs this user's attention, across the engagements they can open."""
+    from ..security import ROLE_RANK
+    q = db.query(Control).join(Engagement, Engagement.id == Control.engagement_id).filter(Engagement.status == "active")
+    if user.role not in ("admin", "manager"):
+        q = q.join(EngagementMember, EngagementMember.engagement_id == Engagement.id).filter(
+            EngagementMember.user_id == user.id)
+    controls = q.order_by(Control.engagement_id, Control.ref).all()
+    by_id = {c.id: c for c in controls}
+    ids = list(by_id) or [-1]
+
+    def item(c, **extra):
+        return dict(id=c.id, ref=c.ref, title=c.title, status=c.status, engagement_id=c.engagement_id,
+                    engagement=f"{c.engagement.client}: {c.engagement.name}", **extra)
+
+    prepared_by_me = {(s.control_id, s.stage) for s in db.query(SignOff).filter(
+        SignOff.control_id.in_(ids), SignOff.revoked.is_(False), SignOff.kind == "prepare", SignOff.user_id == user.id)}
+    to_prepare = [item(c) for c in controls if c.preparer_id == user.id and c.status in
+                  ("not_started", "design_in_progress", "design_reviewed", "operating_in_progress")]
+    waiting = [item(c) for c in controls if c.preparer_id == user.id and c.status in ("design_prepared", "operating_prepared")]
+    to_review = []
+    if ROLE_RANK[user.role] >= ROLE_RANK["reviewer"]:
+        for c in controls:
+            if c.status in ("design_prepared", "operating_prepared") and c.reviewer_id in (None, user.id) \
+                    and (c.id, c.status.split("_")[0]) not in prepared_by_me:
+                to_review.append(item(c))
+    mine = {c.id for c in controls if user.id in (c.preparer_id, c.reviewer_id)}
+    notes = [item(by_id[n.control_id], note=n.text, severity=n.severity, note_status=n.status)
+             for n in db.query(ReviewNote).filter(ReviewNote.control_id.in_(ids), ReviewNote.status != "closed")
+             .order_by(ReviewNote.id.desc()) if n.control_id in mine]
+    requests = [item(by_id[r.control_id], request=r.title, due_date=r.due_date.isoformat() if r.due_date else None)
+                for r in db.query(EvidenceRequest).filter(EvidenceRequest.control_id.in_(ids), EvidenceRequest.status == "open")
+                .order_by(EvidenceRequest.due_date.is_(None), EvidenceRequest.due_date, EvidenceRequest.id)
+                if by_id[r.control_id].preparer_id == user.id]
+    return {"to_prepare": to_prepare[:100], "to_review": to_review[:100], "waiting": waiting[:100],
+            "notes": notes[:50], "requests": requests[:50]}
