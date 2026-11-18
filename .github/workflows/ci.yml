@@ -19,3 +19,28 @@ jobs:
         with: { node-version: "22" }
       - run: npm install --no-audit --no-fund
       - run: npm run build
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t controllens .
+      - name: Start with a root-owned data disk (same as a cloud host)
+        run: |
+          docker volume create cl_data
+          docker run -d --name cl -p 8000:8000 -v cl_data:/data \
+            -e CL_ENV=prod -e CL_JWT_SECRET=$(openssl rand -hex 32) \
+            -e CL_DATABASE_URL=sqlite:////data/controllens.db -e CL_STORAGE_DIR=/data/storage \
+            -e CL_SEED_ADMIN_PASSWORD='CiAdmin#12345' -e CL_SEED_DEMO_PASSWORD='CiDemo#12345' controllens
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 30); do curl -sf localhost:8000/api/health && break || sleep 2; done
+          curl -sf localhost:8000/api/health
+          curl -sf localhost:8000/ | grep -q "ControlLens"
+          curl -sf -X POST localhost:8000/api/auth/login -H 'Content-Type: application/json' \
+            -d '{"email":"priya.preparer@controllens.local","password":"CiDemo#12345"}' | grep -q token
+          test "$(docker exec cl whoami)" = "root" || true
+          docker exec cl sh -c 'ps -o user= -C uvicorn | head -1' | grep -q appuser
+      - name: Logs on failure
+        if: failure()
+        run: docker logs cl
