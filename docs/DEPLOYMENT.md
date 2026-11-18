@@ -35,7 +35,7 @@ It creates one always-on web service from the `Dockerfile`, with a 1 GB disk mou
 
 1. Enter the three values Render asks for: admin password, demo password, Anthropic key (optional).
 2. Wait for the first build (about 5 minutes). Open the `onrender.com` link.
-3. Sign in as `priya.preparer@controllens.local` with your demo password.
+3. Sign in as `shirish@controllens.local` with your demo password.
 
 Notes:
 - Seed passwords are only used the **first** time the app starts on an empty disk. Later, change passwords in the Users page.

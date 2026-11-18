@@ -19,7 +19,7 @@ def login(client, email, pw=DEMO_PASSWORD):
 
 @pytest.fixture(scope="module")
 def H(client):
-    return {"prep": login(client, "priya.preparer@controllens.local"),
+    return {"prep": login(client, "shirish@controllens.local"),
             "rev": login(client, "ravi.reviewer@controllens.local"),
             "mgr": login(client, "maya.manager@controllens.local"),
             "admin": login(client, "admin@controllens.local", "Admin#12345")}

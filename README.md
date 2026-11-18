@@ -150,7 +150,7 @@ For the full design, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Shiripatel/controllens)
 
-**Free trial run, no card:** [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Shiripatel/controllens) starts the app in a private cloud machine on your GitHub account. Wait for setup to finish, then open port 8000 from the **Ports** tab. Sign in with `priya.preparer@controllens.local` / `Demo#12345`. It stops when idle, so use Render for an always-on link.
+**Free trial run, no card:** [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Shiripatel/controllens) starts the app in a private cloud machine on your GitHub account. Wait for setup to finish, then open port 8000 from the **Ports** tab. Sign in with `shirish@controllens.local` / `Demo#12345`. It stops when idle, so use Render for an always-on link.
 
 **Always on:** the Render button. One click sets up the app with a saved disk for the database and evidence (about $7–8 a month on Render). You'll be asked for three values:
 
@@ -210,7 +210,7 @@ On first start, the app creates a demo engagement called **Acme Corp FY2026 SOX 
 
 | Role | Email | Password |
 |---|---|---|
-| Preparer | `priya.preparer@controllens.local` | `Demo#12345` |
+| Preparer | `shirish@controllens.local` | `Demo#12345` |
 | Reviewer | `ravi.reviewer@controllens.local` | `Demo#12345` |
 | Manager | `maya.manager@controllens.local` | `Demo#12345` |
 | Admin | `admin@controllens.local` | `Admin#12345` |

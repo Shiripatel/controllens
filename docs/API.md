@@ -7,7 +7,7 @@ Base URL: `/api`. All responses are JSON unless noted. Full interactive docs (Sw
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"priya.preparer@controllens.local","password":"Demo#12345"}'
+  -d '{"email":"shirish@controllens.local","password":"Demo#12345"}'
 # → {"token": "eyJ...", "user": {...}}
 ```
 

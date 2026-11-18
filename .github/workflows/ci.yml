@@ -38,7 +38,7 @@ jobs:
           curl -sf localhost:8000/api/health
           curl -sf localhost:8000/ | grep -q "ControlLens"
           curl -sf -X POST localhost:8000/api/auth/login -H 'Content-Type: application/json' \
-            -d '{"email":"priya.preparer@controllens.local","password":"CiDemo#12345"}' | grep -q token
+            -d '{"email":"shirish@controllens.local","password":"CiDemo#12345"}' | grep -q token
           # the database file is owned by appuser: the app dropped root and can write to the disk
           docker exec cl stat -c %U /data/controllens.db | grep -q appuser
       - name: Logs on failure

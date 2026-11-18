@@ -4,7 +4,7 @@ import { api, auth } from "../api";
 import { useAuth } from "../App";
 
 const DEMO = [
-  ["Preparer", "priya.preparer@controllens.local"],
+  ["Preparer", "shirish@controllens.local"],
   ["Reviewer", "ravi.reviewer@controllens.local"],
   ["Manager", "maya.manager@controllens.local"],
 ];

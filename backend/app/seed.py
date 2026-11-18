@@ -17,7 +17,7 @@ settings = get_settings()
 
 DEMO_USERS = [
     ("maya.manager@controllens.local", "Maya Manager", "manager"),
-    ("priya.preparer@controllens.local", "Priya Preparer", "preparer"),
+    ("shirish@controllens.local", "Shirish Patel", "preparer"),
     ("ravi.reviewer@controllens.local", "Ravi Reviewer", "reviewer"),
 ]
 DEMO_PASSWORD = settings.seed_demo_password

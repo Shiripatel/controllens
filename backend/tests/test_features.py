@@ -22,7 +22,7 @@ def H(client):
     def login(email):
         r = client.post("/api/auth/login", json={"email": email, "password": DEMO_PASSWORD})
         return {"Authorization": f"Bearer {r.json()['token']}"}
-    return {"prep": login("priya.preparer@controllens.local"), "rev": login("ravi.reviewer@controllens.local")}
+    return {"prep": login("shirish@controllens.local"), "rev": login("ravi.reviewer@controllens.local")}
 
 
 def control(client, H, ref):
