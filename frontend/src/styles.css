@@ -310,3 +310,30 @@ mark { background: #ffe58a; padding: 1px 0; border-radius: 2px; }
 .pane label { min-width: 0; }
 .pane select, .pane input:not([type=checkbox]), .pane textarea { width: 100%; }
 .railstat .badge { align-self: flex-start; }
+
+/* engagements list and matrix extras */
+.sumrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.sum { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--ink-2); }
+.sum b { color: var(--ink); margin-right: 4px; }
+button.sum:hover, .sum.on { border-color: var(--accent); color: var(--accent); }
+.sum.on { background: var(--accent-2); }
+.sum.plain { background: transparent; border-style: dashed; }
+.sum.bad b { color: var(--bad); }
+.stagebar { display: flex; height: 16px; border-radius: 4px; overflow: hidden; gap: 2px; font-size: 10.5px; font-weight: 600; line-height: 16px; text-align: center; margin-bottom: 2px; }
+.stagebar span { min-width: 16px; border-radius: 3px; }
+.p0 { background: #e3e6e2; color: #5c665f; } .p1 { background: #cfe0f5; color: #1f5a99; } .p2 { background: #f6dfae; color: #7a4f00; } .p3 { background: #1d7a4c; color: #fff; }
+.pills { display: inline-flex; gap: 3px; }
+.pill { min-width: 22px; text-align: center; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 7px; }
+.pill.open, i.open { background: #f6dfae; color: #7a4f00; } .pill.recv, i.recv { background: #cfe0f5; color: #1f5a99; } .pill.done, i.done { background: #cdebd8; color: #1d7a4c; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 3px 0 8px; vertical-align: -1px; }
+.lead { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.avatar.sm { width: 22px; height: 22px; font-size: 10px; background: var(--accent-2); color: var(--accent); }
+.colmenu { position: relative; }
+.colmenu summary { list-style: none; border: 1px solid var(--line); border-radius: 6px; padding: 7px 14px; color: var(--ink); margin: 0; }
+.colmenu summary::-webkit-details-marker { display: none; }
+.colmenu-b { position: absolute; right: 0; top: 40px; z-index: 5; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.1); min-width: 190px; }
+.signgrid div { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.signgrid .muted { width: 58px; }
+.tick { width: 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 700; display: inline-grid; place-items: center; background: var(--line-2); color: var(--muted); }
+.tick.on { background: var(--good); color: #fff; }
+.tick { flex: none; }

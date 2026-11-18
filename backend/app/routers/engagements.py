@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .. import audit, serializers as S
 from ..db import get_db
 from ..library import LIBRARY, LIBRARY_BY_REF, DOMAINS, FREQUENCIES
-from ..models import (Engagement, EngagementMember, System, Control, User, Exception_, ReviewNote,
+from ..models import (Evidence, EvidenceRequest, SignOff, Engagement, EngagementMember, System, Control, User, Exception_, ReviewNote,
                       STATUSES)
 from ..security import current_user, require_role, check_engagement_access
 
@@ -38,7 +38,12 @@ def _stats(db, e: Engagement):
         by_status[c.status] = by_status.get(c.status, 0) + 1
         by_domain[c.domain] = by_domain.get(c.domain, 0) + 1
     ids = [c.id for c in controls] or [-1]
+    reqs = {"open": 0, "received": 0, "closed": 0}
+    for (st,) in db.query(EvidenceRequest.status).filter(EvidenceRequest.control_id.in_(ids)):
+        reqs[st] = reqs.get(st, 0) + 1
+    lead = db.get(User, e.created_by)
     return {
+        "requests": reqs, "lead": lead.name if lead else "",
         "controls": len(controls), "by_status": by_status, "by_domain": by_domain,
         "complete": by_status.get("operating_reviewed", 0),
         "open_exceptions": db.query(Exception_).filter(Exception_.control_id.in_(ids),
@@ -241,7 +246,19 @@ def create_control(eid: int, body: ControlIn, db: Session = Depends(get_db), use
 def list_controls(eid: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     get_engagement(db, eid, user)
     cs = db.query(Control).filter_by(engagement_id=eid).order_by(Control.domain, Control.ref).all()
-    return [S.control(c) for c in cs]
+    ids = [c.id for c in cs] or [-1]
+    extra = {c.id: {"files": 0, "requests": {"open": 0, "received": 0, "closed": 0}, "signed": [],
+                    "open_exceptions": 0} for c in cs}
+    for (cid,) in db.query(Evidence.control_id).filter(Evidence.control_id.in_(ids), Evidence.deleted.is_(False)):
+        extra[cid]["files"] += 1
+    for cid, st in db.query(EvidenceRequest.control_id, EvidenceRequest.status).filter(EvidenceRequest.control_id.in_(ids)):
+        extra[cid]["requests"][st] = extra[cid]["requests"].get(st, 0) + 1
+    for cid, stage, kind in db.query(SignOff.control_id, SignOff.stage, SignOff.kind).filter(
+            SignOff.control_id.in_(ids), SignOff.revoked.is_(False)):
+        extra[cid]["signed"].append(f"{stage}:{kind}")
+    for (cid,) in db.query(Exception_.control_id).filter(Exception_.control_id.in_(ids), Exception_.status == "open"):
+        extra[cid]["open_exceptions"] += 1
+    return [dict(S.control(c), **extra[c.id]) for c in cs]
 
 
 @router.get("/engagements/{eid}/export.csv")

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, fmtDate, label } from "../api";
 import { can, useUser } from "../App";
+import { RequestPills } from "./Engagements";
 import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from "../components/ui";
 
 const DOMAINS = ["APD", "PC", "CO", "PD"];
@@ -74,12 +75,20 @@ function Kpi({ n, l, tone = "" }: { n: number; l: string; tone?: string }) {
   return <div className={`kpi ${tone}`}><div className="kpi-n">{n}</div><div className="kpi-l">{l}</div></div>;
 }
 
+const COLS: [string, string][] = [["risk", "Risk"], ["system", "System"], ["freq", "Frequency / nature"], ["rating", "Rating"], ["files", "Files"], ["requests", "Requests"], ["signoffs", "Sign-offs"]];
+const COLS_DEFAULT: Record<string, boolean> = { risk: true, system: true, freq: false, rating: false, files: true, requests: true, signoffs: true };
+
 function ControlsTab({ eng, controls, locked, onChange }: any) {
   const nav = useNavigate();
   const [q, setQ] = useState("");
   const [dom, setDom] = useState("");
   const [st, setSt] = useState("");
   const [adding, setAdding] = useState(false);
+  const [cols, setCols] = useState<Record<string, boolean>>(() => {
+    try { return { ...COLS_DEFAULT, ...JSON.parse(localStorage.getItem("cl_rcm_cols") || "{}") }; } catch { return COLS_DEFAULT; }
+  });
+  const toggle = (k: string) => { const n = { ...cols, [k]: !cols[k] }; setCols(n); try { localStorage.setItem("cl_rcm_cols", JSON.stringify(n)); } catch { /* not saved */ } };
+  const shown = COLS.filter(([k]) => cols[k]).length + 5;
   const rows = useMemo(() => controls.filter((c: any) =>
     (!dom || c.domain === dom) && (!st || c.status === st) &&
     (!q || `${c.ref} ${c.title} ${c.risk} ${c.description} ${c.system?.name ?? ""}`.toLowerCase().includes(q.toLowerCase()))), [controls, q, dom, st]);
@@ -91,26 +100,34 @@ function ControlsTab({ eng, controls, locked, onChange }: any) {
         <select value={dom} onChange={(e) => setDom(e.target.value)}><option value="">All domains</option>{DOMAINS.map((d) => <option key={d} value={d}>{d} — {label(d)}</option>)}</select>
         <select value={st} onChange={(e) => setSt(e.target.value)}><option value="">All statuses</option>{STAGES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
         <div className="spacer" />
-        <span className="muted small">Click a row to open its testing workspace</span>
+        <details className="colmenu"><summary className="ghost">Columns</summary>
+          <div className="colmenu-b">{COLS.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={cols[k]} onChange={() => toggle(k)} /> {l}</label>)}</div>
+        </details>
         {!locked && <button className="primary" onClick={() => setAdding(true)}>Add controls</button>}
       </div>
       {rows.length === 0 ? <Empty title="No controls match">Add controls from the ITGC library.</Empty> : (
         <div className="rcm-wrap">
           <table className="table rcm">
-            <thead><tr><th>Ref</th><th>Risk</th><th>Control</th><th>System</th><th>Frequency / nature</th><th>Rating</th><th>Design</th><th>Operating</th><th>Status</th></tr></thead>
+            <thead><tr><th>Ref</th>{cols.risk && <th>Risk</th>}<th>Control</th>{cols.system && <th>System</th>}{cols.freq && <th>Frequency / nature</th>}{cols.rating && <th>Rating</th>}{cols.files && <th>Files</th>}{cols.requests && <th>Requests</th>}<th>Design</th><th>Operating</th>{cols.signoffs && <th>Sign-offs</th>}<th>Status</th></tr></thead>
             {groups.map(([d, list]) => (
               <tbody key={d}>
-                <tr className="rcm-group"><td colSpan={9}><b>{d}</b> · {label(d)} <span className="muted">({list.length})</span></td></tr>
+                <tr className="rcm-group"><td colSpan={shown}><b>{d}</b> · {label(d)} <span className="muted">({list.length})</span></td></tr>
                 {list.map((c: any) => (
                   <tr key={c.id} className="rcm-row" tabIndex={0} onClick={() => nav(`/controls/${c.id}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/controls/${c.id}`)}>
                     <td className="mono">{c.ref}{c.key_control && <div className="keytag">Key</div>}</td>
-                    <td className="rcm-text">{c.risk}</td>
+                    {cols.risk && <td className="rcm-text">{c.risk}</td>}
                     <td className="rcm-text"><b>{c.title}</b><div className="muted">{c.description}</div></td>
-                    <td>{c.system?.name ?? "—"}</td>
-                    <td>{c.frequency}<div className="muted small">{c.nature}</div></td>
-                    <td><Badge v={c.risk_rating === "High" ? "high" : c.risk_rating === "Low" ? "low" : "medium"} text={c.risk_rating} /></td>
+                    {cols.system && <td>{c.system?.name ?? "—"}</td>}
+                    {cols.freq && <td>{c.frequency}<div className="muted small">{c.nature}</div></td>}
+                    {cols.rating && <td><Badge v={c.risk_rating === "High" ? "high" : c.risk_rating === "Low" ? "low" : "medium"} text={c.risk_rating} /></td>}
+                    {cols.files && <td>{c.files || <span className="muted">—</span>}</td>}
+                    {cols.requests && <td><RequestPills r={c.requests} /></td>}
                     <td>{c.design_conclusion ? <Badge v={c.design_conclusion.design} /> : <span className="muted">—</span>}</td>
-                    <td>{c.operating_conclusion ? <Badge v={c.operating_conclusion.operating} /> : <span className="muted">—</span>}</td>
+                    <td>{c.operating_conclusion ? <Badge v={c.operating_conclusion.operating} /> : <span className="muted">—</span>}{c.open_exceptions > 0 && <div className="bad-text small">{c.open_exceptions} exception(s)</div>}</td>
+                    {cols.signoffs && <td className="signgrid">{[["design", "Design"], ["operating", "Operating"]].map(([k, l]) => (
+                      <div key={k}><span className="muted small">{l}</span>
+                        <span className={c.signed.includes(`${k}:prepare`) ? "tick on" : "tick"} title="Preparer">P</span>
+                        <span className={c.signed.includes(`${k}:review`) ? "tick on" : "tick"} title="Reviewer">R</span></div>))}</td>}
                     <td><Badge v={c.status} /></td>
                   </tr>
                 ))}
