@@ -6,7 +6,7 @@ item (AI, in batches) -> 6 Verify citations -> 7 Propose conclusion (code)."""
 from ..models import Sample, Exception_
 from ..sampling import determine_test_type
 from . import prompts
-from .common import control_block, evidence_block, validate_citations, find_line, CITATION_SCHEMA
+from .common import control_block, evidence_block, evidence_attachments, validate_citations, find_line, CITATION_SCHEMA
 from .llm import call_structured
 from .runner import RunContext, StepFailed
 
@@ -72,7 +72,7 @@ def run(ctx: RunContext) -> dict:
         tool_name="record_operating_procedures", tool_description="Record OE test steps per attribute",
         schema=PROC_SCHEMA, system=prompts.OE_PROCEDURES,
         user=control_block(c) + "\n\nStandard Operating procedures:\n- " + "\n- ".join(c.operating_procedures),
-        mock=mock_proc))
+        mock=mock_proc, role="plan"))
 
     test_type = ctx.step("test_type", "Decide test type", lambda: determine_test_type(c.nature, c.frequency))
 
@@ -124,7 +124,8 @@ def run(ctx: RunContext) -> dict:
                 schema=TEST_SCHEMA, system=prompts.OE_TEST,
                 user=(f"{control_block(c)}\n\nTEST PROCEDURES:\n{proc_txt}\n\nSAMPLE ITEMS TO TEST:\n"
                       f"{sample_txt}\n\n{evidence_block(operating_evidence)}"),
-                mock=lambda b=batch: mock_test(b))
+                mock=lambda b=batch: mock_test(b), role="test",
+                attachments=evidence_attachments(operating_evidence))
             ctx.run.input_tokens += r.input_tokens
             ctx.run.output_tokens += r.output_tokens
             ctx.run.provider, ctx.run.model = r.provider, r.model

@@ -2,6 +2,18 @@ from .models import (User, Engagement, System, Control, Evidence, Sample, AgentR
                      Exception_, SignOff, AuditLog)
 
 
+def _is_visual(e):
+    from .agents.common import is_visual
+    return is_visual(e)
+
+
+def request(r):
+    return {"id": r.id, "control_id": r.control_id, "title": r.title, "detail": r.detail,
+            "status": r.status, "source": r.source,
+            "due_date": r.due_date.isoformat() if r.due_date else None,
+            "evidence_ids": r.evidence_ids or [], "created_at": r.created_at.isoformat()}
+
+
 def user(u: User):
     return {"id": u.id, "email": u.email, "name": u.name, "role": u.role, "active": u.active}
 
@@ -39,6 +51,7 @@ def evidence(e: Evidence):
     return {"id": e.id, "label": f"E{e.id}", "filename": e.filename, "content_type": e.content_type,
             "size": e.size, "sha256": e.sha256, "purpose": e.purpose, "description": e.description,
             "extraction_note": e.extraction_note, "readable": bool(e.extracted_text),
+            "visual": _is_visual(e), "intake_status": e.intake_status, "intake": e.intake,
             "uploaded_by": e.uploaded_by, "uploaded_at": e.uploaded_at.isoformat()}
 
 

@@ -4,6 +4,7 @@ records exactly which instructions produced it."""
 DESIGN_VERSION = "de-1.0"
 OE_VERSION = "oe-1.0"
 REVIEW_VERSION = "rev-1.0"
+INTAKE_VERSION = "intake-1.0"
 
 BASE_RULES = """You are an experienced IT auditor working on IT general controls (ITGC).
 Rules you must follow:
@@ -53,3 +54,9 @@ review notes where: conclusions are not supported by cited evidence, evidence do
 period or system in scope, sample selection or population completeness is not documented,
 exceptions are not explained, or wording is unclear. Do not raise trivial notes. If the work is
 solid, return an empty list of notes."""
+
+INTAKE = """You are an IT auditor checking one evidence file as it arrives, before any testing.
+Say what the file is, what period and system it covers, which control attributes it could
+support, and any quality problems an auditor would raise (for example: no date, no system name,
+does not show who approved, screenshot cut off, not system-generated, outside the audit period).
+Use only what is in the file. Keep the summary to two sentences. Plain, simple English."""

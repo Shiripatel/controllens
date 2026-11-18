@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0] - 2026-11-17
+
+### Added
+- Screenshots (PNG / JPG) and scanned PDFs are sent to the model as images
+- Evidence intake check after every upload: type, period, system, attributes supported, quality issues
+- Citation viewer: click a quote to open the evidence with the quote highlighted
+- Evidence request list per control and per engagement, drafted from agent gaps, with CSV export
+- Printable work paper export per control
+- Optional model per kind of step (`CL_LLM_MODEL_PLAN` / `_EVALUATE` / `_TEST` / `_REVIEW`); model shown on each step
+- Limit on agent runs per user per hour
+- Alembic database migrations, run on start
+- One-click Render deploy (`render.yaml`), configurable demo password, container fixes data disk ownership
+
 ## [1.0.0] - 2026-11-17
 
 First release.

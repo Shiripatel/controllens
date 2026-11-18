@@ -16,11 +16,33 @@ All settings are environment variables with the `CL_` prefix. Locally, you can p
 | `CL_ANTHROPIC_API_KEY` | empty | Empty = offline demo mode |
 | `CL_LLM_PROVIDER` | `auto` | `auto`, `anthropic` or `mock` |
 | `CL_LLM_MODEL` | `claude-sonnet-5-5` | Model used by every AI step |
+| `CL_LLM_MODEL_PLAN` / `_EVALUATE` / `_TEST` / `_REVIEW` | empty | Optional model per kind of step. Empty uses `CL_LLM_MODEL`. |
+| `CL_VISION_ENABLED` | `true` | Send screenshots and scanned PDFs to the model |
+| `CL_MAX_VISUAL_FILES` / `CL_MAX_VISUAL_MB` | `10` / `4.5` | Limits for image files per AI call |
+| `CL_MAX_RUNS_PER_HOUR` | `60` | Agent runs allowed per user per hour |
 | `CL_LLM_MAX_TOKENS` | `8000` | Max output tokens per AI call |
 | `CL_MAX_EVIDENCE_CHARS` | `60000` | Evidence text budget per AI call |
 | `CL_SEED_ADMIN_EMAIL` | `admin@controllens.local` | First admin (created only if there are no users) |
 | `CL_SEED_ADMIN_PASSWORD` | `Admin#12345` | **Change it.** |
+| `CL_SEED_DEMO_PASSWORD` | `Demo#12345` | Password for the demo users. **Change it on any public site.** |
 | `CL_SEED_DEMO` | `true` | Creates demo users and the Acme engagement. **Set to `false` in prod.** |
+
+## Render
+
+The repo has a `render.yaml` blueprint. Click **Deploy to Render** in the README, or in Render choose **New → Blueprint** and pick this repo.
+
+It creates one always-on web service from the `Dockerfile`, with a 1 GB disk mounted at `/data`. The database (SQLite) and evidence files live on that disk, so they survive restarts and new deploys.
+
+1. Enter the three values Render asks for: admin password, demo password, Anthropic key (optional).
+2. Wait for the first build (about 5 minutes). Open the `onrender.com` link.
+3. Sign in as `priya.preparer@controllens.local` with your demo password.
+
+Notes:
+- Seed passwords are only used the **first** time the app starts on an empty disk. Later, change passwords in the Users page.
+- Keep the service at **one instance**. Agent runs happen inside the app.
+- To change the model or add the API key later: Render → your service → **Environment**.
+- Every push to `main` on GitHub redeploys the app. Database migrations run on start.
+- For a bigger setup, swap SQLite for Render Postgres by setting `CL_DATABASE_URL`.
 
 ## Local development
 
@@ -70,7 +92,13 @@ docker compose logs -f app
 
 ## Upgrades
 
-There are no migration scripts in v1. Tables are created if missing, but existing tables are not changed. Before changing models on a live database, add Alembic (it's on the roadmap).
+Database migrations use Alembic and run on every start (`backend/migrations/`). After changing `models.py`, create a new migration:
+
+```bash
+cd backend && alembic revision --autogenerate -m "what changed"
+```
+
+Commit the new file in `migrations/versions/`. It is applied on the next start.
 
 ## Back-ups and restore
 

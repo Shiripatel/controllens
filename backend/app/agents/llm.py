@@ -38,8 +38,15 @@ def provider_name() -> str:
     return "mock"
 
 
+def model_for(role: str) -> str:
+    """Model for a kind of step: plan | evaluate | test | review."""
+    return getattr(settings, f"llm_model_{role}", "") or settings.llm_model
+
+
 def call_structured(*, tool_name: str, tool_description: str, schema: dict, system: str,
-                    user: str, mock: Callable[[], dict], retries: int = 2) -> LLMResult:
+                    user: str, mock: Callable[[], dict], retries: int = 2, role: str = "evaluate",
+                    attachments: list[dict] | None = None) -> LLMResult:
+    """attachments: extra content blocks (images / PDFs) placed before the text."""
     if provider_name() == "mock":
         return LLMResult(data=mock(), provider="mock", model="offline-mock")
 
@@ -51,12 +58,12 @@ def call_structured(*, tool_name: str, tool_description: str, schema: dict, syst
     for attempt in range(retries + 1):
         try:
             resp = client.messages.create(
-                model=settings.llm_model,
+                model=model_for(role),
                 max_tokens=settings.llm_max_tokens,
                 system=system,
                 tools=[tool],
                 tool_choice={"type": "tool", "name": tool_name},
-                messages=[{"role": "user", "content": user}],
+                messages=[{"role": "user", "content": (attachments or []) + [{"type": "text", "text": user}]}],
             )
             block = next((b for b in resp.content if getattr(b, "type", "") == "tool_use"), None)
             if block is None:

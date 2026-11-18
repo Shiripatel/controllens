@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime, timedelta, timezone
 import os
 import random
 import re
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import audit, serializers as S, workflow
-from ..agents import design, operating, reviewer, prompts
+from ..agents import design, operating, reviewer, prompts, intake
 from ..agents.common import input_hash
 from ..agents.llm import provider_name
 from ..agents.runner import execute
@@ -18,7 +19,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..extraction import extract, ALLOWED_EXT
 from ..library import FREQUENCIES
-from ..models import (Control, Evidence, Sample, AgentRun, ReviewNote, Exception_, SignOff, User,
+from ..models import (EvidenceRequest, Control, Evidence, Sample, AgentRun, ReviewNote, Exception_, SignOff, User,
                       AuditLog)
 from ..sampling import determine_test_type, sample_size, parse_population, select
 from ..security import current_user, check_engagement_access, ROLE_RANK
@@ -134,10 +135,15 @@ def _safe_name(name: str) -> str:
 
 
 @router.post("/controls/{cid}/evidence", status_code=201)
-async def upload(cid: int, file: UploadFile = File(...), purpose: str = Form("general"),
-                 description: str = Form(""), db: Session = Depends(get_db),
-                 user: User = Depends(current_user)):
+async def upload(cid: int, bg: BackgroundTasks, file: UploadFile = File(...), purpose: str = Form("general"),
+                 description: str = Form(""), request_id: int | None = Form(None),
+                 db: Session = Depends(get_db), user: User = Depends(current_user)):
     c = get_control(db, cid, user, write=True)
+    req = None
+    if request_id is not None:
+        req = db.get(EvidenceRequest, request_id)
+        if not req or req.control_id != cid:
+            raise HTTPException(404, "Evidence request not found on this control")
     if purpose not in ("design", "operating", "population", "general"):
         raise HTTPException(422, "purpose must be design, operating, population or general")
     fname = _safe_name(file.filename)
@@ -166,7 +172,27 @@ async def upload(cid: int, file: UploadFile = File(...), purpose: str = Form("ge
                         f"Evidence E{e.id} added")
     _log(db, user, "evidence.uploaded", c, {"file": fname, "sha256": sha, "size": len(raw),
                                             "purpose": purpose}, entity="evidence", entity_id=e.id)
+    if req:
+        req.evidence_ids = list(req.evidence_ids or []) + [e.id]
+        if req.status == "open":
+            req.status = "received"
+        _log(db, user, "request.evidence_linked", c, {"request": req.id, "evidence": e.id},
+             entity="request", entity_id=req.id)
     db.commit()
+    bg.add_task(intake.analyze, e.id)
+    return S.evidence(e)
+
+
+@router.post("/evidence/{evid}/intake", status_code=202)
+def rerun_intake(evid: int, bg: BackgroundTasks, db: Session = Depends(get_db),
+                 user: User = Depends(current_user)):
+    e = db.get(Evidence, evid)
+    if not e or e.deleted:
+        raise HTTPException(404, "Evidence not found")
+    get_control(db, e.control_id, user, write=True)
+    e.intake_status = "pending"
+    db.commit()
+    bg.add_task(intake.analyze, e.id)
     return S.evidence(e)
 
 
@@ -285,6 +311,10 @@ def start_run(cid: int, body: RunIn, bg: BackgroundTasks, db: Session = Depends(
     c = get_control(db, cid, user, write=True)
     if body.agent not in AGENTS:
         raise HTTPException(422, "agent must be design, operating or reviewer")
+    hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent = db.query(AgentRun).filter(AgentRun.created_by == user.id, AgentRun.created_at >= hour_ago).count()
+    if recent >= settings.max_runs_per_hour:
+        raise HTTPException(429, f"Limit of {settings.max_runs_per_hour} agent runs per hour reached. Try again later.")
     busy = db.query(AgentRun).filter(AgentRun.control_id == cid, AgentRun.agent == body.agent,
                                      AgentRun.status.in_(("queued", "running"))).first()
     if busy:

@@ -17,7 +17,16 @@ ControlLens has three agents. Each one runs as a list of **steps**. Some steps c
 
 ## Models used in each step
 
-All AI steps use one model, set by `CL_LLM_MODEL` (default `claude-sonnet-5-5`). Every other step is code, so the numbers and roll-ups are always repeatable.
+By default all AI steps use one model, set by `CL_LLM_MODEL` (default `claude-sonnet-5-5`). You can set a different model for each kind of step:
+
+| Setting | Used by | Suggested |
+|---|---|---|
+| `CL_LLM_MODEL_PLAN` | Design step 2, Operating step 2, evidence intake check | A small, fast model |
+| `CL_LLM_MODEL_EVALUATE` | Design step 3 | Your strongest model |
+| `CL_LLM_MODEL_TEST` | Operating step 5 (most calls) | A mid-size model |
+| `CL_LLM_MODEL_REVIEW` | Reviewer step 2 | Your strongest model |
+
+The model used is saved on each step and shown next to the step name on screen. Every other step is code, so the numbers and roll-ups are always repeatable.
 
 | Agent | # | Step | Runs on |
 |---|---|---|---|
@@ -105,6 +114,18 @@ File: `backend/app/agents/reviewer.py` · Prompt version: `rev-1.0`
 Open review notes **block** the reviewer's sign-off. Only a person with reviewer role or higher can close them.
 
 ---
+
+## Evidence intake check
+
+File: `backend/app/agents/intake.py` · Prompt version: `intake-1.0`
+
+Runs once for each file, right after upload (and again if you click **Re-check**). One AI call returns: document type, a two-sentence summary, period covered, system named, which attributes the file could support, and quality issues. Population files are profiled by code instead (row count and columns). The result is shown on the evidence card and in the work paper.
+
+## Screenshots and scanned PDFs
+
+PNG / JPG files, and PDFs with little or no text, are sent to the model as images (`evidence_attachments` in `common.py`), each with a label such as "Evidence E12 follows". Limits: `CL_MAX_VISUAL_FILES` per call and `CL_MAX_VISUAL_MB` per file.
+
+A quote taken from an image can't be checked by code. Those citations show **?** ("check by eye") instead of ✓, and the viewer opens the image next to the quote. They still count as support, so a person must confirm them before sign-off.
 
 ## Guardrails
 

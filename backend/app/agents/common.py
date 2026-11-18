@@ -1,6 +1,8 @@
+import base64
 import hashlib
 import json
 import re
+from pathlib import Path
 
 from ..config import get_settings
 from ..models import Control, Evidence
@@ -29,13 +31,51 @@ Attributes:
 {attrs}"""
 
 
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+def is_visual(e: Evidence) -> bool:
+    """True for evidence the model must look at: screenshots, photos and scanned PDFs."""
+    name = e.filename.lower()
+    if name.endswith(tuple(IMAGE_TYPES)):
+        return True
+    return name.endswith(".pdf") and (not e.extracted_text.strip() or "may be scanned" in e.extraction_note)
+
+
+def evidence_attachments(evidence: list[Evidence]) -> list[dict]:
+    """Content blocks for visual evidence, each introduced by a label so the model can cite it."""
+    from .llm import provider_name
+    if not settings.vision_enabled or provider_name() == "mock":
+        return []
+    blocks, n = [], 0
+    for e in evidence:
+        if not is_visual(e) or n >= settings.max_visual_files:
+            continue
+        p = Path(e.storage_path)
+        if not p.exists() or p.stat().st_size > settings.max_visual_mb * 1024 * 1024:
+            continue
+        data = base64.standard_b64encode(p.read_bytes()).decode()
+        ext = p.suffix.lower()
+        blocks.append({"type": "text", "text": f"Evidence E{e.id} (file: {e.filename}, purpose: {e.purpose}) follows:"})
+        if ext in IMAGE_TYPES:
+            blocks.append({"type": "image", "source": {"type": "base64", "media_type": IMAGE_TYPES[ext], "data": data}})
+        else:
+            blocks.append({"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}})
+        n += 1
+    return blocks
+
+
 def evidence_block(evidence: list[Evidence]) -> str:
     if not evidence:
         return "EVIDENCE: none provided."
     budget = max(2000, settings.max_evidence_chars // max(1, len(evidence)))
     parts = []
     for e in evidence:
-        body = e.extracted_text or f"(no readable text: {e.extraction_note})"
+        if is_visual(e):
+            body = ("(This file is attached above as an image / scanned document. Read it visually. "
+                    "When you cite it, quote the visible text exactly and say where it is on the page.)")
+        else:
+            body = e.extracted_text or f"(no readable text: {e.extraction_note})"
         cut = " [truncated]" if len(body) > budget else ""
         parts.append(f'<evidence id="E{e.id}" file="{e.filename}" purpose="{e.purpose}">\n'
                      f"{body[:budget]}{cut}\n</evidence>")
@@ -64,8 +104,9 @@ def validate_citations(citations: list[dict], evidence: list[Evidence], where: s
             c["verified"] = False
             flags.append({"type": "unknown_evidence", "where": where,
                           "detail": f"Cited {cit.get('evidence_id')} which is not attached to this control"})
-        elif not ev.extracted_text:
-            c["verified"] = None  # cannot check (image / unreadable)
+        elif not ev.extracted_text or is_visual(ev):
+            c["verified"] = None  # image / scan: a person must check the quote by eye
+            c["visual"] = is_visual(ev)
             c["filename"] = ev.filename
         else:
             excerpt = norm(cit.get("excerpt", ""))[:120]

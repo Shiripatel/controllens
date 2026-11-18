@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -13,8 +14,9 @@ from . import seed
 from .agents.llm import provider_name
 from .config import get_settings
 from .db import Base, engine, SessionLocal
-from .models import AgentRun
-from .routers import auth, engagements, controls, audit_log
+from .agents import intake
+from .models import AgentRun, Evidence
+from .routers import auth, engagements, controls, audit_log, requests
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO,
@@ -22,10 +24,23 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("controllens")
 
 
+def migrate():
+    """Bring the database up to the latest schema (Alembic). Safe to run on every start."""
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import inspect
+    tables = set(inspect(engine).get_table_names())
+    if "users" in tables and "alembic_version" not in tables:
+        raise RuntimeError("This database was created by an early build without migrations. "
+                           "Delete it (dev) or restore from a backup, then start again.")
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    command.upgrade(cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
-    Base.metadata.create_all(engine)
+    migrate()
     with SessionLocal() as db:
         seed.run(db)
         # Runs interrupted by a restart can never finish; mark them failed
@@ -33,6 +48,11 @@ async def lifespan(app: FastAPI):
         for r in stuck:
             r.status, r.error = "failed", "Interrupted by server restart"
         db.commit()
+    # Finish intake checks that were waiting (seeded files, or files uploaded just before a restart)
+    with SessionLocal() as db:
+        pending = [e.id for e in db.query(Evidence).filter_by(intake_status="pending", deleted=False)]
+    if pending:
+        threading.Thread(target=lambda: [intake.analyze(i) for i in pending], daemon=True).start()
     log.info("started; AI provider=%s model=%s", provider_name(), settings.llm_model)
     yield
 
@@ -62,7 +82,7 @@ async def request_context(request: Request, call_next):
     return response
 
 
-for r in (auth.router, engagements.router, controls.router, audit_log.router):
+for r in (auth.router, engagements.router, controls.router, audit_log.router, requests.router):
     app.include_router(r, prefix="/api")
 
 

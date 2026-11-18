@@ -11,26 +11,33 @@
 - Hash-chained audit trail, evidence hashing, roles, lockout
 - Docker + Postgres, CI, offline demo mode
 
-## v1.1: production hardening
+## v1.1 (done)
+
+- Screenshots and scanned PDFs read by the AI as images
+- Evidence intake check on every upload
+- Citation viewer with the quote highlighted
+- Evidence request list (per control and engagement, CSV export)
+- Printable work paper export
+- Model per kind of step, hourly run limit
+- Alembic migrations, one-click Render deploy
+
+## v1.2: production hardening
 
 - [ ] SSO (OIDC: Azure AD, Okta) and MFA
-- [ ] Alembic migrations
 - [ ] Job queue for agent runs (Arq / Celery / Azure Service Bus), more than one worker, retry on restart
 - [ ] Evidence in Azure Blob / S3 with encryption and malware scan
 - [ ] Secure cookies instead of browser storage, plus rate limiting
 - [ ] Daily audit-chain anchor to write-once storage
 
-## v1.2: better agents
+## v1.3: better agents
 
-- [ ] Choose the model for each step (for example Haiku for planning, Sonnet for testing, Opus for evaluation and review)
-- [ ] OCR for scanned PDFs, and image input for screenshots
 - [ ] Evaluation set: gold-standard controls with known answers, re-run on every prompt change
 - [ ] Prompt caching for large evidence sets
-- [ ] Agent drafts the evidence request list (PBC list) from gaps
+- [ ] Client portal: clients upload against requests with their own login
 
-## v1.3: reporting
+## v1.4: reporting
 
-- [ ] Signed PDF work paper per control
+- [ ] Digitally signed PDF version of the work paper
 - [ ] Deficiency summary and aggregation
 - [ ] Engagement dashboard export for management
 

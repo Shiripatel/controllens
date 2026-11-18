@@ -28,6 +28,7 @@ Tokens expire after `CL_JWT_EXPIRE_MINUTES` (default 480 minutes).
 | 404 | Not found |
 | 409 | Conflict: wrong status for this step, someone else changed the record, duplicate file, open review notes, or engagement locked |
 | 413 / 415 | File too large / file type not allowed |
+| 429 | Too many agent runs this hour |
 | 422 | Input not valid (the message says what to fix) |
 | 423 | Account locked after failed logins |
 
@@ -83,6 +84,21 @@ Error body: `{"detail": "Plain-English message"}`. Every response has an `X-Requ
 | GET | `/evidence/{id}/text` | viewer | Text the agents read |
 | GET | `/evidence/{id}/download` | viewer | Original file. The hash is checked first. |
 | DELETE | `/evidence/{id}` | preparer | Soft delete. Revokes affected sign-offs. |
+
+### Evidence requests and work paper
+
+| Method | Path | Min role | What it does |
+|---|---|---|---|
+| GET | `/controls/{cid}/requests` | viewer | Request list for a control |
+| POST | `/controls/{cid}/requests` | preparer | Add `{title, detail, due_date}` |
+| POST | `/controls/{cid}/requests/draft` | preparer | Draft the list from the Design agent's gaps, or the standard evidence list |
+| PATCH | `/requests/{rid}` | preparer | Change status (open / received / closed), text, due date, linked files |
+| GET | `/engagements/{eid}/requests` | viewer | All requests in the engagement |
+| GET | `/engagements/{eid}/requests.csv` | viewer | CSV for the client |
+| POST | `/evidence/{id}/intake` | preparer | Re-run the intake check |
+| GET | `/controls/{cid}/workpaper.html` | viewer | Printable work paper (file download) |
+
+Upload accepts an optional `request_id` form field. It links the file to that request and marks it received.
 
 ### Sampling
 

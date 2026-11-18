@@ -14,8 +14,10 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 COPY --from=web /web/dist /app/frontend/dist
-RUN useradd -m appuser && mkdir -p /data/storage && chown -R appuser /data /app
-USER appuser
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN useradd -m appuser && mkdir -p /data/storage && chown -R appuser /data /app \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
 ENV CL_STORAGE_DIR=/data/storage
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+# Starts as root only to fix ownership of the mounted data disk, then drops to appuser
+ENTRYPOINT ["docker-entrypoint.sh"]

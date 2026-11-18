@@ -20,7 +20,7 @@ DEMO_USERS = [
     ("priya.preparer@controllens.local", "Priya Preparer", "preparer"),
     ("ravi.reviewer@controllens.local", "Ravi Reviewer", "reviewer"),
 ]
-DEMO_PASSWORD = "Demo#12345"
+DEMO_PASSWORD = settings.seed_demo_password
 
 POLICY = """ACME CORP - ACCESS MANAGEMENT POLICY (v3.2, effective 1 Jan 2026)
 Section 4.1 New access: All new user access and changes to access must be requested through a ServiceNow access request ticket.

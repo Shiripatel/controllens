@@ -74,7 +74,7 @@ def run(ctx: RunContext) -> dict:
             tool_name="record_review_notes", tool_description="Record review notes",
             schema=SCHEMA, system=prompts.REVIEW,
             user=f"{control_block(c)}\n\nWORK PAPERS (JSON):\n{work_txt}\n\n{evidence_block(ctx.evidence)}",
-            mock=lambda: {"notes": [], "overall": "[offline mock] Only rule-based checks were run."})
+            mock=lambda: {"notes": [], "overall": "[offline mock] Only rule-based checks were run."}, role="review")
 
     ai = ctx.step("ai_review", "Review work papers", ai_review)
 

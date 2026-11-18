@@ -42,6 +42,12 @@ export const api = {
   post: <T = any>(p: string, b?: unknown) => request<T>("POST", p, b ?? {}),
   patch: <T = any>(p: string, b: unknown) => request<T>("PATCH", p, b),
   del: <T = any>(p: string) => request<T>("DELETE", p),
+  /** Fetch a protected file and return a temporary URL for <img> / <iframe>. */
+  async blobUrl(p: string) {
+    const res = await fetch(`/api${p}`, { headers: { Authorization: `Bearer ${auth.token}` } });
+    if (!res.ok) throw new ApiError(res.status, "Could not open file");
+    return URL.createObjectURL(await res.blob());
+  },
   async download(p: string, filename: string) {
     const res = await fetch(`/api${p}`, { headers: { Authorization: `Bearer ${auth.token}` } });
     if (!res.ok) {

@@ -119,6 +119,24 @@ class Evidence(Base):
     uploaded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)  # soft delete, keeps the record
+    # Intake check: what the file is, which attributes it supports, quality issues
+    intake_status: Mapped[str] = mapped_column(String(10), default="pending")  # pending | done | failed
+    intake: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class EvidenceRequest(Base):
+    """An item on the evidence request (PBC) list for a control."""
+    __tablename__ = "evidence_requests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    control_id: Mapped[int] = mapped_column(ForeignKey("controls.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(10), default="open")  # open | received | closed
+    source: Mapped[str] = mapped_column(String(10), default="human")  # human | agent
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    evidence_ids: Mapped[list] = mapped_column(JSON, default=list)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Sample(Base):

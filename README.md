@@ -13,7 +13,7 @@ AI agents draft the audit work. People make the decisions. Every claim is tied t
 ![Claude](https://img.shields.io/badge/AI-Claude-D97757)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-[Quick start](#quick-start) · [Demo](#demo-walkthrough) · [Architecture](docs/ARCHITECTURE.md) · [Agents](docs/AGENTS.md) · [API](docs/API.md) · [Security](docs/SECURITY.md) · [Deploy](docs/DEPLOYMENT.md)
+[Launch it](#launch-it-online) · [Quick start](#quick-start) · [Demo](#demo-walkthrough) · [Architecture](docs/ARCHITECTURE.md) · [Agents](docs/AGENTS.md) · [API](docs/API.md) · [Security](docs/SECURITY.md) · [Deploy](docs/DEPLOYMENT.md)
 
 ![Operating effectiveness testing](docs/screenshots/operating-effectiveness.png)
 
@@ -74,7 +74,16 @@ The agents follow the two standard SOX / PCAOB AS 2201 testing stages, design ef
 | **Operating Effectiveness (OE)** | Tests every sample item against every attribute, in batches. Logs exceptions with the exact reason (for example, "access granted 28-May, owner approval 30-May"). |
 | **Reviewer** | Runs quality rules and an AI review of the work papers. Raises review notes, which block the reviewer's sign-off until they are closed. |
 
+### Reads real evidence
+
+- **Screenshots and scanned PDFs** are sent to the AI as images, so it can read system settings screens, approval emails and signed forms.
+- **Intake check on every upload**: within seconds the agent says what the file is, the period and system it covers, which attributes it supports, and any quality problems (no date, no system name, cut-off screenshot).
+- **Click any quote** in an agent's result to open the evidence file with that quote highlighted.
+
 ### Audit workflow
+
+- **Evidence request list (PBC)**: drafted from the Design agent's gaps, tracked per control and across the engagement, with a CSV export for the client
+- **Work paper export**: one printable file per control with evidence hashes, results, quotes, sample, exceptions and sign-offs
 
 - **Engagements** with in-scope systems (application, database, OS layers) and team members
 - **Evidence** upload: PDF, Excel, CSV, Word, text and images, with text pulled out automatically
@@ -93,6 +102,8 @@ The agents follow the two standard SOX / PCAOB AS 2201 testing stages, design ef
 | Integrity | Sign-offs are revoked automatically when the control, its evidence, its sample or an exception changes |
 | Audit trail | Hash-chained log of every action, with a one-click integrity check |
 | Evidence | SHA-256 hash on upload, checked on every download. File type and size limits. Soft delete only. |
+| AI cost control | Choose a model for each kind of step. Limit on agent runs per user per hour. |
+| Upgrades | Database migrations (Alembic) run on every start, so updates keep your data |
 | AI traceability | Each run stores the model, prompt version, input hash, evidence used, every step's output and token counts |
 | Data safety | Two people editing the same control can't overwrite each other's changes. Engagements can be locked. |
 | Login | bcrypt passwords, strength rules, lockout after 5 failed tries, JWT sessions |
@@ -132,6 +143,22 @@ flowchart LR
 ```
 
 For the full design, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+---
+
+## Launch it online
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Shiripatel/controllens)
+
+One click sets up the app with a saved disk for the database and evidence (about $7–8 a month on Render). You'll be asked for three values:
+
+| Value | What to enter |
+|---|---|
+| `CL_SEED_ADMIN_PASSWORD` | A password for `admin@controllens.local` |
+| `CL_SEED_DEMO_PASSWORD` | A password for the three demo users (preparer, reviewer, manager) |
+| `CL_ANTHROPIC_API_KEY` | Your Anthropic key for real AI. Leave empty for offline demo mode. |
+
+Passwords need 10+ characters with upper case, lower case and a number. Details: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#render).
 
 ---
 
@@ -218,6 +245,8 @@ Use control **APD-01 · User access provisioning**.
 | Engagement dashboard | Design Effectiveness agent |
 |---|---|
 | ![Engagement](docs/screenshots/engagement.png) | ![DE](docs/screenshots/design-effectiveness.png) |
+| **Evidence intake check** | **Click a quote to see it in the file** |
+| ![Intake](docs/screenshots/evidence-intake.png) | ![Citation](docs/screenshots/citation-viewer.png) |
 | **Operating Effectiveness agent** | **Tamper-evident audit trail** |
 | ![OE](docs/screenshots/operating-effectiveness.png) | ![Audit](docs/screenshots/audit-trail.png) |
 
@@ -295,11 +324,11 @@ Interactive API docs (Swagger) are at `http://localhost:8000/docs` when the serv
 
 - [x] ITGC library, DE / OE / Reviewer agents, sampling, sign-offs, audit trail
 - [ ] SSO (Azure AD / Okta) and MFA
-- [ ] Alembic database migrations
+- [x] Alembic database migrations
+- [x] Screenshot and scanned-PDF reading, intake check, citation viewer
+- [x] Evidence request list, work paper export, model per step
 - [ ] Job queue for agent runs (scale out, survive restarts)
 - [ ] Cloud evidence storage with encryption and malware scan
-- [ ] OCR and screenshot reading
-- [ ] PDF work paper export
 - [ ] Business process controls (P2P, O2C, R2R) and SOC 1 / SOC 2 mapping
 
 Full list: [docs/ROADMAP.md](docs/ROADMAP.md)

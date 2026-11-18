@@ -4,7 +4,7 @@ Steps: 1 Set context -> 2 Map risk to attributes -> 3 Map attributes to procedur
 -> 4 Map procedures to evidence & evaluate -> 5 Check citations (guardrail)
 -> 6 Roll up proposed conclusion (deterministic)."""
 from . import prompts
-from .common import (control_block, evidence_block, validate_citations, keywords, find_line,
+from .common import (control_block, evidence_block, evidence_attachments, validate_citations, keywords, find_line,
                      CITATION_SCHEMA)
 from .llm import call_structured
 from .runner import RunContext, StepFailed
@@ -80,7 +80,7 @@ def run(ctx: RunContext) -> dict:
         tool_name="record_design_plan", tool_description="Record the DE plan",
         schema=PLAN_SCHEMA, system=prompts.DESIGN_PLAN,
         user=control_block(c) + "\n\nStandard Design procedures:\n- " + "\n- ".join(c.design_procedures),
-        mock=mock_plan))
+        mock=mock_plan, role="plan"))
 
     # --- Step 4: evaluate against evidence
     def mock_eval():
@@ -108,7 +108,7 @@ def run(ctx: RunContext) -> dict:
         tool_name="record_design_evaluation", tool_description="Record DE evaluation per attribute",
         schema=EVAL_SCHEMA, system=prompts.DESIGN_EVALUATE,
         user=f"{control_block(c)}\n\nPLAN:\n{plan_txt}\n\n{evidence_block(ctx.evidence)}",
-        mock=mock_eval))
+        mock=mock_eval, role="evaluate", attachments=evidence_attachments(ctx.evidence)))
 
     # --- Step 5: guardrail - verify citations, downgrade unsupported claims
     def check():

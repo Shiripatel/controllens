@@ -1,0 +1,33 @@
+# Render Blueprint: one web service (API + web app) with a disk for the database and evidence.
+# Deploy: https://render.com/deploy?repo=https://github.com/Shiripatel/controllens
+services:
+  - type: web
+    name: controllens
+    runtime: docker
+    plan: starter            # always on; needed for the disk and for agent runs
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    numInstances: 1          # keep at 1: agent runs happen inside the app
+    disk:
+      name: controllens-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: CL_ENV
+        value: prod
+      - key: CL_DATABASE_URL
+        value: sqlite:////data/controllens.db
+      - key: CL_STORAGE_DIR
+        value: /data/storage
+      - key: CL_JWT_SECRET
+        generateValue: true
+      - key: CL_SEED_DEMO
+        value: "true"
+      - key: CL_SEED_ADMIN_PASSWORD
+        sync: false          # you type this in when you deploy
+      - key: CL_SEED_DEMO_PASSWORD
+        sync: false          # password for the three demo users
+      - key: CL_ANTHROPIC_API_KEY
+        sync: false          # leave empty for offline demo mode
+      - key: CL_LLM_MODEL
+        value: claude-sonnet-5-5

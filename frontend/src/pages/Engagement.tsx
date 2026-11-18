@@ -56,11 +56,13 @@ export default function EngagementPage() {
 
       <Tabs active={tab} onChange={setTab} tabs={[
         { key: "controls", label: "Controls", count: controls.length },
+        { key: "requests", label: "Evidence requests" },
         { key: "systems", label: "Systems", count: eng.systems.length },
         { key: "team", label: "Team", count: eng.members.length },
         { key: "activity", label: "Activity" },
       ]} />
       {tab === "controls" && <ControlsTab eng={eng} controls={controls} locked={locked} onChange={() => { reloadControls(); reload(); }} />}
+      {tab === "requests" && <RequestsTracker eid={eng.id} client={eng.client} />}
       {tab === "systems" && <SystemsTab eng={eng} locked={locked} onChange={reload} />}
       {tab === "team" && <TeamTab eng={eng} onChange={reload} />}
       {tab === "activity" && <Activity path={`/audit?engagement_id=${eid}`} />}
@@ -235,5 +237,33 @@ export function Activity({ path }: { path: string }) {
           <td className="details">{Object.entries(a.details || {}).slice(0, 4).map(([k, v]) => <span key={k}><b>{k}</b>: {typeof v === "object" ? JSON.stringify(v).slice(0, 80) : String(v).slice(0, 80)} </span>)}</td></tr>
       ))}</tbody>
     </table>
+  );
+}
+
+function RequestsTracker({ eid, client }: { eid: number; client: string }) {
+  const [rows] = useLoad<any[]>(() => api.get(`/engagements/${eid}/requests`), [eid]);
+  const { run } = useAction();
+  if (!rows) return <Loading />;
+  const open = rows.filter((r) => r.status === "open").length;
+  return (
+    <>
+      <div className="toolbar">
+        <span className="muted">{rows.length} request(s) · {open} still open</span>
+        <div className="spacer" />
+        <button className="ghost" onClick={() => run(() => api.download(`/engagements/${eid}/requests.csv`, `${client}_evidence_requests.csv`))}>Export for client (CSV)</button>
+      </div>
+      {rows.length === 0 ? <Empty title="No evidence requests yet">Open a control and use the Requests tab to draft its list.</Empty> : (
+        <table className="table">
+          <thead><tr><th>Control</th><th>Request</th><th>Due</th><th>Files</th><th>Status</th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.id}>
+              <td className="mono"><Link to={`/controls/${r.control_id}`}>{r.control_ref}</Link></td>
+              <td>{r.title}</td><td className="nowrap">{r.due_date ?? "—"}</td><td>{r.evidence_ids.length}</td>
+              <td><Badge v={r.status === "open" ? "open" : r.status === "received" ? "addressed" : "closed"} text={r.status} /></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </>
   );
 }

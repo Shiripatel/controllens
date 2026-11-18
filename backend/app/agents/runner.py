@@ -53,6 +53,7 @@ class RunContext:
             self.run.provider, self.run.model = out.provider, out.model
             self.run.input_tokens += out.input_tokens
             self.run.output_tokens += out.output_tokens
+            entry.update(model=out.model, tokens=out.input_tokens + out.output_tokens)
             out = out.data
         entry.update(status="done", output=out, finished=datetime.now(timezone.utc).isoformat())
         self.outputs[key] = out

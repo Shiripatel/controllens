@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDate, fmtSize, label } from "../api";
+import { api, fmtDate, label } from "../api";
 import { can, useUser } from "../App";
 import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from "../components/ui";
 import { Activity } from "./Engagement";
+import { Citations, EvidenceTab, RequestsTab } from "./Extras";
 
 const FLOW = [
   ["not_started", "Not started"], ["design_in_progress", "Design"], ["design_prepared", "Design prepared"], ["design_reviewed", "Design reviewed"],
@@ -32,6 +33,7 @@ export default function ControlWorkspace() {
           <h1>{c.title}</h1>
           <p className="muted">{c.system?.name ?? "No system"} · {c.frequency} · {c.nature} · {c.risk_rating} risk {c.key_control ? "· Key control" : ""}</p>
         </div>
+        <button className="ghost" onClick={() => api.download(`/controls/${c.id}/workpaper.html`, `${c.ref}_workpaper.html`)}>Export work paper</button>
       </div>
       {locked && <div className="banner warn">Engagement is {c.engagement.status}; this control is read-only.</div>}
       <div className="stepper">
@@ -40,6 +42,7 @@ export default function ControlWorkspace() {
       <Tabs active={tab} onChange={setTab} tabs={[
         { key: "overview", label: "Control" },
         { key: "evidence", label: "Evidence", count: evidence.length },
+        { key: "requests", label: "Requests" },
         { key: "design", label: "Design Effectiveness" },
         { key: "sampling", label: "Sampling" },
         { key: "operating", label: "Operating Effectiveness" },
@@ -48,6 +51,7 @@ export default function ControlWorkspace() {
       ]} />
       {tab === "overview" && <Overview {...props} />}
       {tab === "evidence" && <EvidenceTab {...props} />}
+      {tab === "requests" && <RequestsTab {...props} />}
       {tab === "design" && <StageTab stage="design" {...props} />}
       {tab === "sampling" && <SamplingTab {...props} />}
       {tab === "operating" && <StageTab stage="operating" {...props} />}
@@ -136,62 +140,6 @@ function Field({ l, children }: any) {
   return <div className="field"><div className="field-l">{l}</div><div>{children}</div></div>;
 }
 
-// ------------------------------------------------------------------ evidence
-function EvidenceTab({ c, evidence, locked, refresh }: any) {
-  const [file, setFile] = useState<File | null>(null);
-  const [purpose, setPurpose] = useState("design");
-  const [desc, setDesc] = useState("");
-  const [view, setView] = useState<any>(null);
-  const { busy, run } = useAction();
-  return (
-    <>
-      {!locked && (
-        <form className="card upload" onSubmit={async (e) => {
-          e.preventDefault();
-          if (!file) return;
-          const fd = new FormData();
-          fd.append("file", file); fd.append("purpose", purpose); fd.append("description", desc);
-          if (await run(() => api.post(`/controls/${c.id}/evidence`, fd), "Evidence uploaded")) {
-            setFile(null); setDesc(""); (e.target as HTMLFormElement).reset(); refresh();
-          }
-        }}>
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} accept=".pdf,.txt,.csv,.log,.md,.json,.xml,.xlsx,.xlsm,.docx,.png,.jpg,.jpeg,.eml" />
-          <select value={purpose} onChange={(e) => setPurpose(e.target.value)}>
-            <option value="design">Design / walkthrough</option>
-            <option value="population">Population (for sampling)</option>
-            <option value="operating">Operating test evidence</option>
-            <option value="general">General</option>
-          </select>
-          <input placeholder="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} />
-          <button className="primary" disabled={!file || busy}>{busy ? "Uploading…" : "Upload"}</button>
-        </form>
-      )}
-      {evidence.length === 0 ? <Empty title="No evidence yet">Upload the policy, walkthrough, population and sample evidence. Expected: {c.expected_evidence.join(", ")}.</Empty> : (
-        <table className="table">
-          <thead><tr><th>ID</th><th>File</th><th>Purpose</th><th>Size</th><th>SHA-256</th><th>Read by AI</th><th>Uploaded</th><th /></tr></thead>
-          <tbody>{evidence.map((e: any) => (
-            <tr key={e.id}>
-              <td className="mono">{e.label}</td>
-              <td>{e.filename}{e.description && <div className="muted small">{e.description}</div>}</td>
-              <td><Badge v="low" text={e.purpose} /></td>
-              <td className="nowrap">{fmtSize(e.size)}</td>
-              <td className="mono small" title={e.sha256}>{e.sha256.slice(0, 12)}…</td>
-              <td>{e.readable ? <span className="good-text">✓</span> : <span className="warn-text">✗</span>} <span className="muted small">{e.extraction_note}</span></td>
-              <td className="nowrap small">{fmtDate(e.uploaded_at)}</td>
-              <td className="nowrap">
-                <button className="ghost sm" onClick={() => run(async () => setView(await api.get(`/evidence/${e.id}/text`)))}>View</button>
-                <button className="ghost sm" onClick={() => run(() => api.download(`/evidence/${e.id}/download`, e.filename))}>Download</button>
-                {!locked && <button className="ghost sm" onClick={() => confirm(`Remove ${e.filename}? The record stays in the audit trail.`) && run(async () => { await api.del(`/evidence/${e.id}`); refresh(); }, "Evidence removed")}>Remove</button>}
-              </td>
-            </tr>
-          ))}</tbody>
-        </table>
-      )}
-      {view && <Modal title={`E${view.id} · ${view.filename}`} onClose={() => setView(null)} wide><div className="muted small">{view.note}</div><pre className="doc">{view.text || "(no readable text)"}</pre></Modal>}
-    </>
-  );
-}
-
 // ---------------------------------------------------------------- agent runs
 function useRuns(cid: number, agent: string) {
   const [runs, reload] = useLoad<any[]>(() => api.get(`/controls/${cid}/runs?agent=${agent}`), [cid, agent]);
@@ -250,7 +198,7 @@ function RunSteps({ run }: { run: any }) {
         {run.steps.map((s: any, i: number) => (
           <li key={s.key} className={s.status}>
             <button className="step-h" onClick={() => setOpen(open === s.key ? null : s.key)}>
-              <span className="n">{i + 1}</span>{s.title}<Badge v={s.status === "done" ? "succeeded" : s.status} text={s.status} />
+              <span className="n">{i + 1}</span>{s.title}{s.model && <span className="muted small mono">{s.model}</span>}<Badge v={s.status === "done" ? "succeeded" : s.status} text={s.status} />
             </button>
             {s.error && <div className="errorbox">{s.error}</div>}
             {open === s.key && <pre className="json">{JSON.stringify(s.output, null, 2)}</pre>}
@@ -266,16 +214,6 @@ function RunSteps({ run }: { run: any }) {
       )}
     </div>
   );
-}
-
-function Citations({ list }: { list: any[] }) {
-  if (!list?.length) return <span className="muted small">No evidence cited</span>;
-  return <div className="cites">{list.map((x, i) => (
-    <div key={i} className="cite">
-      <span className={`ver ${x.verified === true ? "ok" : x.verified === false ? "no" : "na"}`} title={x.verified === true ? "Quote found in evidence" : x.verified === false ? "Quote NOT found in evidence" : "Could not be checked"}>{x.verified === true ? "✓" : x.verified === false ? "✗" : "?"}</span>
-      <span className="mono">{x.evidence_id}</span>{x.locator && <span className="muted small"> {x.locator}</span>} <q>{x.excerpt}</q>
-    </div>
-  ))}</div>;
 }
 
 // ---------------------------------------------------------- DE / OE stage
