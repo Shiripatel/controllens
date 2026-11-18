@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0] - 2026-11-17
+
+### Changed
+- Controls list is now a risk & control matrix (risk, control, system, conclusions), grouped by domain; rows open the workspace
+- Control page is now a three-pane testing workspace: editable control details, work area, and an agents panel with run status
+- Previous / next control buttons; side panels can be hidden; app menu shrinks to icons on the workspace
+
 ## [1.1.0] - 2026-11-17
 
 ### Added

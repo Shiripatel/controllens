@@ -33,7 +33,7 @@ def engagement(e: Engagement, stats: dict | None = None):
 
 def control(c: Control, full=False):
     d = {"id": c.id, "engagement_id": c.engagement_id, "ref": c.ref, "domain": c.domain,
-         "title": c.title, "frequency": c.frequency, "nature": c.nature,
+         "title": c.title, "risk": c.risk, "description": c.description, "frequency": c.frequency, "nature": c.nature,
          "risk_rating": c.risk_rating, "key_control": c.key_control, "status": c.status,
          "system": system(c.system) if c.system else None, "preparer_id": c.preparer_id,
          "reviewer_id": c.reviewer_id, "row_version": c.row_version,

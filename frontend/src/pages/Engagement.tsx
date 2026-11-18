@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, fmtDate, label } from "../api";
 import { can, useUser } from "../App";
 import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from "../components/ui";
@@ -55,7 +55,7 @@ export default function EngagementPage() {
       </div>
 
       <Tabs active={tab} onChange={setTab} tabs={[
-        { key: "controls", label: "Controls", count: controls.length },
+        { key: "controls", label: "Risk & control matrix", count: controls.length },
         { key: "requests", label: "Evidence requests" },
         { key: "systems", label: "Systems", count: eng.systems.length },
         { key: "team", label: "Team", count: eng.members.length },
@@ -75,40 +75,49 @@ function Kpi({ n, l, tone = "" }: { n: number; l: string; tone?: string }) {
 }
 
 function ControlsTab({ eng, controls, locked, onChange }: any) {
+  const nav = useNavigate();
   const [q, setQ] = useState("");
   const [dom, setDom] = useState("");
   const [st, setSt] = useState("");
   const [adding, setAdding] = useState(false);
   const rows = useMemo(() => controls.filter((c: any) =>
     (!dom || c.domain === dom) && (!st || c.status === st) &&
-    (!q || `${c.ref} ${c.title} ${c.system?.name ?? ""}`.toLowerCase().includes(q.toLowerCase()))), [controls, q, dom, st]);
+    (!q || `${c.ref} ${c.title} ${c.risk} ${c.description} ${c.system?.name ?? ""}`.toLowerCase().includes(q.toLowerCase()))), [controls, q, dom, st]);
+  const groups = DOMAINS.map((d) => [d, rows.filter((c: any) => c.domain === d)] as [string, any[]]).filter(([, r]) => r.length);
   return (
     <>
       <div className="toolbar">
-        <input placeholder="Search controls…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input placeholder="Search risks and controls…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select value={dom} onChange={(e) => setDom(e.target.value)}><option value="">All domains</option>{DOMAINS.map((d) => <option key={d} value={d}>{d} — {label(d)}</option>)}</select>
         <select value={st} onChange={(e) => setSt(e.target.value)}><option value="">All statuses</option>{STAGES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
         <div className="spacer" />
+        <span className="muted small">Click a row to open its testing workspace</span>
         {!locked && <button className="primary" onClick={() => setAdding(true)}>Add controls</button>}
       </div>
       {rows.length === 0 ? <Empty title="No controls match">Add controls from the ITGC library.</Empty> : (
-        <table className="table">
-          <thead><tr><th>Ref</th><th>Control</th><th>System</th><th>Frequency</th><th>Nature</th><th>Risk</th><th>DE</th><th>OE</th><th>Status</th></tr></thead>
-          <tbody>
-            {rows.map((c: any) => (
-              <tr key={c.id}>
-                <td className="mono"><Link to={`/controls/${c.id}`}>{c.ref}</Link></td>
-                <td><Link to={`/controls/${c.id}`}>{c.title}</Link></td>
-                <td>{c.system?.name ?? "—"}</td>
-                <td>{c.frequency}</td><td>{c.nature}</td>
-                <td><Badge v={c.risk_rating === "High" ? "high" : c.risk_rating === "Low" ? "low" : "medium"} text={c.risk_rating} /></td>
-                <td>{c.design_conclusion ? <Badge v={c.design_conclusion.design} /> : <span className="muted">—</span>}</td>
-                <td>{c.operating_conclusion ? <Badge v={c.operating_conclusion.operating} /> : <span className="muted">—</span>}</td>
-                <td><Badge v={c.status} /></td>
-              </tr>
+        <div className="rcm-wrap">
+          <table className="table rcm">
+            <thead><tr><th>Ref</th><th>Risk</th><th>Control</th><th>System</th><th>Frequency / nature</th><th>Rating</th><th>Design</th><th>Operating</th><th>Status</th></tr></thead>
+            {groups.map(([d, list]) => (
+              <tbody key={d}>
+                <tr className="rcm-group"><td colSpan={9}><b>{d}</b> · {label(d)} <span className="muted">({list.length})</span></td></tr>
+                {list.map((c: any) => (
+                  <tr key={c.id} className="rcm-row" tabIndex={0} onClick={() => nav(`/controls/${c.id}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/controls/${c.id}`)}>
+                    <td className="mono">{c.ref}{c.key_control && <div className="keytag">Key</div>}</td>
+                    <td className="rcm-text">{c.risk}</td>
+                    <td className="rcm-text"><b>{c.title}</b><div className="muted">{c.description}</div></td>
+                    <td>{c.system?.name ?? "—"}</td>
+                    <td>{c.frequency}<div className="muted small">{c.nature}</div></td>
+                    <td><Badge v={c.risk_rating === "High" ? "high" : c.risk_rating === "Low" ? "low" : "medium"} text={c.risk_rating} /></td>
+                    <td>{c.design_conclusion ? <Badge v={c.design_conclusion.design} /> : <span className="muted">—</span>}</td>
+                    <td>{c.operating_conclusion ? <Badge v={c.operating_conclusion.operating} /> : <span className="muted">—</span>}</td>
+                    <td><Badge v={c.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
             ))}
-          </tbody>
-        </table>
+          </table>
+        </div>
       )}
       {adding && <AddFromLibrary eng={eng} onClose={() => setAdding(false)} onDone={() => { setAdding(false); onChange(); }} />}
     </>

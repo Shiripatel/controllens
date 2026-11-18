@@ -82,6 +82,9 @@ The agents follow the two standard SOX / PCAOB AS 2201 testing stages, design ef
 
 ### Audit workflow
 
+- **Risk & control matrix (RCM)**: every risk and control in one grid, grouped by domain. Click a row to open its testing workspace.
+- **Control testing workspace**: control details on the left (edit in place), the work area in the middle, and the agents with their run status on the right. Step to the previous or next control without going back.
+
 - **Evidence request list (PBC)**: drafted from the Design agent's gaps, tracked per control and across the engagement, with a CSV export for the client
 - **Work paper export**: one printable file per control with evidence hashes, results, quotes, sample, exceptions and sign-offs
 
@@ -244,7 +247,7 @@ Use control **APD-01 · User access provisioning**.
 
 ## Screenshots
 
-| Engagement dashboard | Design Effectiveness agent |
+| Risk & control matrix | Control testing workspace |
 |---|---|
 | ![Engagement](docs/screenshots/engagement.png) | ![DE](docs/screenshots/design-effectiveness.png) |
 | **Evidence intake check** | **Click a quote to see it in the file** |

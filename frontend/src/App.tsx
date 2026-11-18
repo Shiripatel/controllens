@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, auth, type User } from "./api";
 import { ToastProvider, Loading } from "./components/ui";
 import Login from "./pages/Login";
@@ -21,30 +21,31 @@ export const can = (u: User, min: "viewer" | "preparer" | "reviewer" | "manager"
 function Shell({ children }: { children: ReactNode }) {
   const { user, setUser } = useAuth();
   const nav = useNavigate();
+  const compact = useLocation().pathname.startsWith("/controls/");
   const [health, setHealth] = useState<{ ai_provider: string; model: string }>();
   useEffect(() => { api.get("/health").then(setHealth).catch(() => {}); }, []);
   if (!user) return <Navigate to="/login" />;
   return (
-    <div className="shell">
+    <div className={`shell ${compact ? "compact" : ""}`}>
       <aside className="side">
-        <div className="brand"><span className="logo">◎</span> ControlLens</div>
+        <div className="brand"><span className="logo">◎</span><span className="lbl"> ControlLens</span></div>
         <nav>
-          <NavLink to="/engagements">Engagements</NavLink>
-          <NavLink to="/library">Control library</NavLink>
-          {can(user, "manager") && <NavLink to="/audit">Audit trail</NavLink>}
-          {user.role === "admin" && <NavLink to="/users">Users</NavLink>}
+          <NavLink to="/engagements" title="Engagements"><span className="ico">▦</span><span className="lbl">Engagements</span></NavLink>
+          <NavLink to="/library" title="Control library"><span className="ico">☰</span><span className="lbl">Control library</span></NavLink>
+          {can(user, "manager") && <NavLink to="/audit" title="Audit trail"><span className="ico">⛨</span><span className="lbl">Audit trail</span></NavLink>}
+          {user.role === "admin" && <NavLink to="/users" title="Users"><span className="ico">☺</span><span className="lbl">Users</span></NavLink>}
         </nav>
         <div className="side-foot">
           {health && (
-            <div className={`ai-pill ${health.ai_provider}`} title={health.model}>
+            <div className={`ai-pill lbl ${health.ai_provider}`} title={health.model}>
               AI: {health.ai_provider === "mock" ? "offline demo mode" : health.model}
             </div>
           )}
           <div className="me">
             <div className="avatar">{user.name.split(" ").map((x) => x[0]).join("").slice(0, 2)}</div>
-            <div><div className="me-name">{user.name}</div><div className="me-role">{user.role}</div></div>
+            <div className="lbl"><div className="me-name">{user.name}</div><div className="me-role">{user.role}</div></div>
           </div>
-          <button className="ghost sm" onClick={() => { auth.set(null); setUser(null); nav("/login"); }}>Sign out</button>
+          <button className="ghost sm" onClick={() => { auth.set(null); setUser(null); nav("/login"); }} title="Sign out"><span className="ico">⏻</span><span className="lbl">Sign out</span></button>
         </div>
       </aside>
       <main className="main">{children}</main>
