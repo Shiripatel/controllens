@@ -1,0 +1,9 @@
+{
+  "name": "ControlLens",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": { "ghcr.io/devcontainers/features/node:1": { "version": "22" } },
+  "postCreateCommand": "pip install -r backend/requirements.txt && cd frontend && npm ci && npm run build",
+  "postStartCommand": "cd backend && (nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/controllens.log 2>&1 &) && sleep 3",
+  "forwardPorts": [8000],
+  "portsAttributes": { "8000": { "label": "ControlLens", "onAutoForward": "openBrowser" } }
+}
