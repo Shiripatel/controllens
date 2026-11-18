@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0] - 2026-11-17
+
+### Added
+- Journal entry testing module: ledger upload, 15 rule and statistics checks, risk score per journal, AI explanations for the riskiest journals, auditor decisions with notes, CSV export, sample ledger
+- Database migration 0002 for the new tables
+
 ## [1.3.0] - 2026-11-17
 
 ### Added

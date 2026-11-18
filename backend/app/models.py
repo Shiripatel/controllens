@@ -5,6 +5,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
 
+_date = date  # alias: one table has a column that is itself named 'date'
+
 
 def now():
     return datetime.now(timezone.utc)
@@ -153,6 +155,44 @@ class Sample(Base):
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class JournalBatch(Base):
+    """One uploaded general ledger extract, scored for journal entry testing."""
+    __tablename__ = "journal_batches"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    sha256: Mapped[str] = mapped_column(String(64))
+    storage_path: Mapped[str] = mapped_column(String(500))
+    mapping: Mapped[dict] = mapped_column(JSON, default=dict)
+    stats: Mapped[dict] = mapped_column(JSON, default=dict)
+    explain_status: Mapped[str] = mapped_column(String(10), default="none")  # none | running | done | failed
+    uploaded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class JournalEntry(Base):
+    __tablename__ = "journal_entries"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("journal_batches.id", ondelete="CASCADE"), index=True)
+    ref: Mapped[str] = mapped_column(String(80))
+    date: Mapped[_date | None] = mapped_column(Date, nullable=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    user: Mapped[str] = mapped_column(String(120), default="")
+    approver: Mapped[str] = mapped_column(String(120), default="")
+    source: Mapped[str] = mapped_column(String(120), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    amount: Mapped[float] = mapped_column(default=0.0)
+    line_count: Mapped[int] = mapped_column(Integer, default=0)
+    lines: Mapped[list] = mapped_column(JSON, default=list)
+    score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    band: Mapped[str] = mapped_column(String(10), default="low", index=True)
+    hits: Mapped[list] = mapped_column(JSON, default=list)
+    explanation: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    disposition: Mapped[str] = mapped_column(String(12), default="open")  # open | selected | cleared | exception
+    disposition_note: Mapped[str] = mapped_column(Text, default="")
+    disposition_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
 
 class AgentRun(Base):

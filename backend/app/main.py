@@ -15,8 +15,8 @@ from .agents.llm import provider_name
 from .config import get_settings
 from .db import Base, engine, SessionLocal
 from .agents import intake
-from .models import AgentRun, Evidence
-from .routers import auth, engagements, controls, audit_log, requests
+from .models import AgentRun, Evidence, JournalBatch
+from .routers import auth, engagements, controls, audit_log, requests, journals
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO,
@@ -44,6 +44,7 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as db:
         seed.run(db)
         # Runs interrupted by a restart can never finish; mark them failed
+        db.query(JournalBatch).filter_by(explain_status="running").update({"explain_status": "failed"})
         stuck = db.query(AgentRun).filter(AgentRun.status.in_(("queued", "running"))).all()
         for r in stuck:
             r.status, r.error = "failed", "Interrupted by server restart"
@@ -82,7 +83,7 @@ async def request_context(request: Request, call_next):
     return response
 
 
-for r in (auth.router, engagements.router, controls.router, audit_log.router, requests.router):
+for r in (auth.router, engagements.router, controls.router, audit_log.router, requests.router, journals.router):
     app.include_router(r, prefix="/api")
 
 

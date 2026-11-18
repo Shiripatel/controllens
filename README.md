@@ -74,6 +74,12 @@ The agents follow the two standard SOX / PCAOB AS 2201 testing stages, design ef
 | **Operating Effectiveness (OE)** | Tests every sample item against every attribute, in batches. Logs exceptions with the exact reason (for example, "access granted 28-May, owner approval 30-May"). |
 | **Reviewer** | Runs quality rules and an AI review of the work papers. Raises review notes, which block the reviewer's sign-off until they are closed. |
 
+### Journal entry testing
+
+A second module on each engagement. Upload the general ledger and every journal is scored against 15 checks for unusual entries (weekend postings, round amounts, entries just under approval limits, journals no one else approved, duplicates and more). The AI explains the riskiest journals and suggests what to check, and the auditor records a decision on each. See [docs/JOURNAL-TESTING.md](docs/JOURNAL-TESTING.md).
+
+![Journal entry testing](docs/screenshots/journal-testing.png)
+
 ### Reads real evidence
 
 - **Screenshots and scanned PDFs** are sent to the AI as images, so it can read system settings screens, approval emails and signed forms.
@@ -318,6 +324,7 @@ controllens/
 | [API reference](docs/API.md) | All endpoints with roles and examples |
 | [Security](docs/SECURITY.md) | Roles, segregation of duties, audit trail, evidence integrity, known gaps |
 | [Deployment](docs/DEPLOYMENT.md) | Settings, Docker, Postgres, production checklist |
+| [Journal entry testing](docs/JOURNAL-TESTING.md) | The 15 checks, scoring, what is code and what is AI |
 | [Methodology](docs/METHODOLOGY.md) | ITGC domains, sampling table, conclusion rules |
 | [Roadmap](docs/ROADMAP.md) | What's next |
 | [Contributing](CONTRIBUTING.md) | How to set up, test and submit changes |

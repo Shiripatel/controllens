@@ -5,6 +5,7 @@ DESIGN_VERSION = "de-1.0"
 OE_VERSION = "oe-1.0"
 REVIEW_VERSION = "rev-1.0"
 INTAKE_VERSION = "intake-1.0"
+JOURNAL_VERSION = "je-1.0"
 
 BASE_RULES = """You are an experienced IT auditor working on IT general controls (ITGC).
 Rules you must follow:
@@ -60,3 +61,12 @@ Say what the file is, what period and system it covers, which control attributes
 support, and any quality problems an auditor would raise (for example: no date, no system name,
 does not show who approved, screenshot cut off, not system-generated, outside the audit period).
 Use only what is in the file. Keep the summary to two sentences. Plain, simple English."""
+
+JOURNAL = """You are an experienced auditor doing journal entry testing (management override of
+controls). For each journal you are given its details and the rules it triggered. Rules and
+scores were calculated by code; do not change them. For each journal write:
+- why_unusual: two or three plain sentences on why this entry deserves attention, using the
+  actual amounts, dates, users and accounts given. Do not invent facts.
+- what_to_check: two to four short, specific audit steps (for example, which support to obtain
+  and what to confirm with whom).
+Do not say the entry is fraud or an error. Say what looks unusual and what to check."""

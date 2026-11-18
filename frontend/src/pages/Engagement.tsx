@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, fmtDate, label } from "../api";
 import { can, useUser } from "../App";
 import { RequestPills } from "./Engagements";
+import JournalsTab from "./Journals";
 import { Badge, Empty, ErrorBox, Loading, Modal, Tabs, useAction, useLoad } from "../components/ui";
 
 const DOMAINS = ["APD", "PC", "CO", "PD"];
@@ -57,12 +58,14 @@ export default function EngagementPage() {
 
       <Tabs active={tab} onChange={setTab} tabs={[
         { key: "controls", label: "Risk & control matrix", count: controls.length },
+        { key: "journals", label: "Journal entry testing" },
         { key: "requests", label: "Evidence requests" },
         { key: "systems", label: "Systems", count: eng.systems.length },
         { key: "team", label: "Team", count: eng.members.length },
         { key: "activity", label: "Activity" },
       ]} />
       {tab === "controls" && <ControlsTab eng={eng} controls={controls} locked={locked} onChange={() => { reloadControls(); reload(); }} />}
+      {tab === "journals" && <JournalsTab eng={eng} locked={locked} />}
       {tab === "requests" && <RequestsTracker eid={eng.id} client={eng.client} />}
       {tab === "systems" && <SystemsTab eng={eng} locked={locked} onChange={reload} />}
       {tab === "team" && <TeamTab eng={eng} onChange={reload} />}
