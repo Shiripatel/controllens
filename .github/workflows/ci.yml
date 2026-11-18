@@ -39,8 +39,8 @@ jobs:
           curl -sf localhost:8000/ | grep -q "ControlLens"
           curl -sf -X POST localhost:8000/api/auth/login -H 'Content-Type: application/json' \
             -d '{"email":"priya.preparer@controllens.local","password":"CiDemo#12345"}' | grep -q token
-          test "$(docker exec cl whoami)" = "root" || true
-          docker exec cl sh -c 'ps -o user= -C uvicorn | head -1' | grep -q appuser
+          # the database file is owned by appuser: the app dropped root and can write to the disk
+          docker exec cl stat -c %U /data/controllens.db | grep -q appuser
       - name: Logs on failure
         if: failure()
         run: docker logs cl
